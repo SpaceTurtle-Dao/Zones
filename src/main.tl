@@ -1,4 +1,5 @@
-local bint = require('token.utils.bint')(256)
+local bint = require('utils.bint')(256)
+local NIP01 = require('nip01')
 local rxJson = require('json')
 local dummy_package = require('dummy.dummy')
 dummy_package.print_dummy(1)
@@ -10,6 +11,7 @@ global Variant: string
 global Balances: {string:string}
 global Memes: {string:string}
 global Replies: {string:string}
+global events:{NIP01.Kind0}
 
 -- Utils helper functions
 local utils = {
