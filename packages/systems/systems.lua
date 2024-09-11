@@ -1,13 +1,13 @@
 local ao = require('ao')
 local json = require('json');
 
-function event(msg)
-    local _event = json.decode(msg.Data);
+function event(data)
+    local _event = json.decode(data);
     return _event
 end
 
-function filters(msg)
-    local filters = json.decode(msg.Data)
+function filters(value)
+    local filters = json.decode(value)
     return filters
 end
 

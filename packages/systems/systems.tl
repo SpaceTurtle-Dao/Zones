@@ -5,8 +5,8 @@ local Filter = require('filter')
 local systems = {}
 
 global record SystemsModule
-    event: function(msg: Message) : Event
-    filters: function(msg: Message) : {Filter}
+    event: function(value: string) : Event
+    filters: function(value: string) : {Filter}
 end
 
 -- Assign the module type
