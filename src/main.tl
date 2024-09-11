@@ -40,6 +40,15 @@ Events = Events or { }
 Feed = Feed or { }
 Token = "" -- AO or wAR token
 
+local function info(msg: Message)
+  ao.send({
+    Target = msg.From,
+    Token = Token,
+    Profile = rxJson.encode(Profile),
+    SubscriptionCost = SubscriptionCost
+  })
+end
+
 local function fetchFeed(msg: Message)
   local page = utils.toNumber(msg.Tags.Page)
   local size = utils.toNumber(msg.Tags.Size)
@@ -47,15 +56,6 @@ local function fetchFeed(msg: Message)
   ao.send({
     Target = msg.From,
     Data = rxJson.encode(results)
-  })
-end
-
-local function info(msg: Message)
-  ao.send({
-    Target = msg.From,
-    Token = Token,
-    Profile = rxJson.encode(Profile),
-    SubscriptionCost = SubscriptionCost
   })
 end
 
@@ -72,16 +72,6 @@ local function token(msg: Message)
   --sets the cost of a subscription
   assert(ao.env.Process.Owner == msg.From)
   Token = msg.Tags.Token
-end
-
-local function withdraw(msg: Message)
-  --Withdraws Tokens
-  assert(ao.env.Process.Owner == msg.From)
-  ao.send({
-    Target = msg.Tags.Token,
-    Quantity = msg.Tags.Quantity,
-    Recipient = msg.Tags.Recipient
-  })
 end
 
 local function cost(msg: Message)
@@ -122,6 +112,7 @@ local function event(msg: Message)
   --Brodcast
 end
 
+
 local function subscribe(msg: Message)
   --subscribes to events from this relay
   if utils.toNumber(msg.Tags.Quantity) < utils.toNumber(SubscriptionCost) then
@@ -148,6 +139,16 @@ local function close(msg: Message)
   if utils.toNumber(quantity) <= 0 then return end
   --return funds and set balance to 0
   Subscriptions[msg.From] = "0"
+end
+
+local function withdraw(msg: Message)
+  --Withdraws Tokens
+  assert(ao.env.Process.Owner == msg.From)
+  ao.send({
+    Target = msg.Tags.Token,
+    Quantity = msg.Tags.Quantity,
+    Recipient = msg.Tags.Recipient
+  })
 end
 
 local function creditNotice(msg: Message)
