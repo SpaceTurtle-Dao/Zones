@@ -15,5 +15,5 @@ return {
   global_env_def = "ao",
   module_name = "amm",
   gen_target = "5.3",
-  dont_prune = { "build-lua/dummy", "build-lua/dummy/**/*" }
+  dont_prune = { "build-lua/systems", "build-lua/systems/**/*" }
 }
