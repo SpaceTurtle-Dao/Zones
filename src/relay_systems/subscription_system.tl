@@ -10,36 +10,78 @@ local function subscriptionCost(msg: Message)
 end
 
 local function subscribe(msg: Message)
---subscribes to events from this relay
-if utils.toNumber(msg.Tags.Quantity) < utils.toNumber(SubscriptionCost) then
-    --[[return funds and send message about insufficient funds]]-- 
+    --subscribes to events from another relay
+    assert(ao.env.Process.Owner == msg.From)
+    Handlers.add("subscribe"..msg.Tags.Relay, Handlers.utils.hasMatchingTag('Action', "subscribe"..msg.Tags.Relay), function(_msg:Message)
+        assert(_msg.From == msg.Tags.Relay)
+        Handlers.remove("subscribe"..msg.Tags.Relay)
+        if not msg.Tags.Status or msg.Tags.Status ~= "200" then return end
+        Subscriptions[_msg.From] = _msg.From
+    end)
     ao.send({
-        Target = msg.From,
+        Target = msg.Tags.Token,
+        Action = "Transfer",
         Quantity = msg.Tags.Quantity,
-        Recipient = msg.Tags.Sender
+        Recipient = msg.Tags.Relay,
+        ["X-Type"] = "Req"
+    })
+end
+
+local function unSubscribe(msg: Message)
+    --unsubscribes from a relay
+    assert(ao.env.Process.Owner == msg.From)
+    Handlers.add("close"..msg.Tags.Relay, Handlers.utils.hasMatchingTag('Action', "close"..msg.Tags.Relay), function(_msg:Message)
+        assert(_msg.From == msg.Tags.Relay)
+        Handlers.remove("close"..msg.Tags.Relay)
+        Subscriptions[_msg.From] = nil
+    end)
+    ao.send({
+        Target = msg.Tags.Relay,
+        Action = "Close",
+    })
+end
+
+local function req(msg: Message)
+    --subscribes to events from this relay
+    if utils.toNumber(msg.Tags.Quantity) < utils.toNumber(SubscriptionCost) then
+        --[[return funds and send message about insufficient funds]]-- 
+        ao.send({
+            Target = msg.From,
+            Quantity = msg.Tags.Quantity,
+            Recipient = msg.Tags.Sender
+        })
+        ao.send({
+            Target = msg.Tags.Sender,
+            Action = "subscribe"..ao.id,
+            Status = "400" 
         })
         return 
     end
-    if not Subs[msg.Tags.Sender] then Subs[msg.Tags.Sender] = "0" end
-    local quantity = Subs[msg.Tags.Sender];
-    Subs[msg.Tags.Sender] = utils.add(quantity, msg.Tags.Quantity)
-
+    Subs[msg.Tags.Sender] = msg.Tags.Sender
+    ao.send({
+        Target = msg.Tags.Sender,
+        Action = "subscribe"..ao.id,
+        Status = "200" 
+    })
     --local filters:{Filter} = systems.filters(msg.Tags.Filters);
     --local subscription_id = msg.Tags["subscription_id"]
 end
 
 local function close(msg: Message)
-    --removes relay from Subs and returns any remaining balance
-    if not Subs[msg.Tags.Sender] then Subs[msg.Tags.Sender] = "0" end
-    local quantity = Subs[msg.Tags.Sender];
-    if utils.toNumber(quantity) <= 0 then return end
-    --return funds and set balance to 0
-    Subs[msg.From] = "0"
+    --removes relay from Subs
+    ao.send({
+        Target = msg.From,
+        Action = "close"..ao.id,
+    })
+    if not Subs[msg.From] then return end
+    Subs[msg.From] = nil
 end
 
 
 return {
     subscriptionCost = subscriptionCost,
-    subscribe = subscribe,
+    req = req,
     close = close,
+    subscribe = subscribe,
+    unSubscribe = unSubscribe,
 }

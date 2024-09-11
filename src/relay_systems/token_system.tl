@@ -27,8 +27,8 @@ local function creditNotice(msg: Message)
         feed_system.payedFeed(msg)
         return
     end
-    if _type == "Subscribe" then
-        subscription_system.subscribe(msg)
+    if _type == "Req" then
+        subscription_system.req(msg)
         return
     end
     ao.send({
