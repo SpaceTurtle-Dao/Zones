@@ -52,6 +52,16 @@ end
 local function fetchFeed(msg: Message)
   local page = utils.toNumber(msg.Tags.Page)
   local size = utils.toNumber(msg.Tags.Size)
+  local results = systems.fetch(Feed,page,size,msg.Tags.Kinds)
+  ao.send({
+    Target = msg.From,
+    Data = rxJson.encode(results)
+  })
+end
+
+local function fetchEvents(msg: Message)
+  local page = utils.toNumber(msg.Tags.Page)
+  local size = utils.toNumber(msg.Tags.Size)
   local results = systems.fetch(Events,page,size,msg.Tags.Kinds)
   ao.send({
     Target = msg.From,
@@ -197,6 +207,7 @@ Handlers.add('Token', Handlers.utils.hasMatchingTag('Action', 'Token'), token)
 Handlers.add('Profile', Handlers.utils.hasMatchingTag('Action', 'Profile'), profile)
 Handlers.add('Feed', Handlers.utils.hasMatchingTag('Action', 'Feed'), feed)
 Handlers.add('FetchFeed', Handlers.utils.hasMatchingTag('Action', 'FetchFeed'), fetchFeed)
+Handlers.add('FetchEvents', Handlers.utils.hasMatchingTag('Action', 'FetchEvents'), fetchEvents)
 Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), info)
 Handlers.add('Withdraw', Handlers.utils.hasMatchingTag('Action', 'Withdraw'), withdraw)
 Handlers.add('Credit-Notice', Handlers.utils.hasMatchingTag('Action', 'Credit-Notice'), creditNotice)
