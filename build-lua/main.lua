@@ -40,16 +40,6 @@ Events = Events or {}
 Feed = Feed or {}
 Token = ""
 
-local function fetchFeed(msg)
-   local page = utils.toNumber(msg.Tags.Page)
-   local size = utils.toNumber(msg.Tags.Size)
-   local results = systems.fetch(Events, page, size)
-   ao.send({
-      Target = msg.From,
-      Data = rxJson.encode(results),
-   })
-end
-
 local function info(msg)
    ao.send({
       Target = msg.From,
@@ -59,10 +49,20 @@ local function info(msg)
    })
 end
 
+local function fetchFeed(msg)
+   local page = utils.toNumber(msg.Tags.Page)
+   local size = utils.toNumber(msg.Tags.Size)
+   local results = systems.fetch(Events, page, size, msg.Tags.Kinds)
+   ao.send({
+      Target = msg.From,
+      Data = rxJson.encode(results),
+   })
+end
+
 local function profile(msg)
 
    assert(ao.env.Process.Owner == msg.From)
-   local _event = systems.event(msg);
+   local _event = systems.createEvent(msg);
    if _event.kind == 0 then
       Profile = _event
    end
@@ -74,16 +74,6 @@ local function token(msg)
    Token = msg.Tags.Token
 end
 
-local function withdraw(msg)
-
-   assert(ao.env.Process.Owner == msg.From)
-   ao.send({
-      Target = msg.Tags.Token,
-      Quantity = msg.Tags.Quantity,
-      Recipient = msg.Tags.Recipient,
-   })
-end
-
 local function cost(msg)
 
    assert(ao.env.Process.Owner == msg.From)
@@ -93,7 +83,7 @@ end
 
 local function feed(msg)
    if not Subs[msg.From] then return end
-   local _event = systems.event(msg);
+   local _event = systems.event(msg.Data);
    table.insert(Feed, _event)
 end
 
@@ -110,17 +100,18 @@ local function payedFeed(msg)
       return
    end
    if not Subs[msg.From] then return end
-   local _event = systems.event(msg);
+   local _event = systems.event(msg.Tags.Event);
    table.insert(Feed, _event)
 end
 
 local function event(msg)
 
    assert(ao.env.Process.Owner == msg.From)
-   local _event = systems.event(msg);
+   local _event = systems.createEvent(msg);
    table.insert(Events, _event)
 
 end
+
 
 local function subscribe(msg)
 
@@ -148,6 +139,16 @@ local function close(msg)
    if utils.toNumber(quantity) <= 0 then return end
 
    Subscriptions[msg.From] = "0"
+end
+
+local function withdraw(msg)
+
+   assert(ao.env.Process.Owner == msg.From)
+   ao.send({
+      Target = msg.Tags.Token,
+      Quantity = msg.Tags.Quantity,
+      Recipient = msg.Tags.Recipient,
+   })
 end
 
 local function creditNotice(msg)
