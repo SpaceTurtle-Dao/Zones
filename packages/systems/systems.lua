@@ -23,10 +23,16 @@ function filters(value)
     return filters
 end
 
-function fetch(tbl, page, size)
+function fetch(tbl, page, size, kinds)
     local tempArray = {}
     for k, v in pairs(tbl) do
-        table.insert(tempArray, v)
+        for _k,_v in pairs(json.decode(kinds)) do
+            if v.kind == _v then
+                table.insert(tempArray, v)
+                break
+            end
+        end
+        
     end
     local start = (page - 1) * size + 1
     local endPage = page * size

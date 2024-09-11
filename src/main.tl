@@ -52,7 +52,7 @@ end
 local function fetchFeed(msg: Message)
   local page = utils.toNumber(msg.Tags.Page)
   local size = utils.toNumber(msg.Tags.Size)
-  local results = systems.fetch(Events,page,size)
+  local results = systems.fetch(Events,page,size,msg.Tags.Kinds)
   ao.send({
     Target = msg.From,
     Data = rxJson.encode(results)
@@ -62,7 +62,7 @@ end
 local function profile(msg: Message)
   --sets the profile event
   assert(ao.env.Process.Owner == msg.From)
-  local _event = systems.event(msg);
+  local _event = systems.createEvent(msg);
   if _event.kind == 0 then 
     Profile = _event
   end
@@ -83,7 +83,7 @@ end
 
 local function feed(msg: Message)
   if not Subs[msg.From] then return end
-  local _event = systems.event(msg);
+  local _event = systems.event(msg.Data);
   table.insert(Feed,_event)
 end
 
@@ -107,7 +107,7 @@ end
 local function event(msg: Message)
   --creates and event and inserts it into the Events table
   assert(ao.env.Process.Owner == msg.From)
-  local _event:Event = systems.event(msg);
+  local _event:Event = systems.createEvent(msg);
   table.insert(Events,_event)
   --Brodcast
 end
