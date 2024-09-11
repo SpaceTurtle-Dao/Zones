@@ -20,21 +20,21 @@ if utils.toNumber(msg.Tags.Quantity) < utils.toNumber(SubscriptionCost) then
         })
         return 
     end
-    if not Subscriptions[msg.Tags.Sender] then Subscriptions[msg.Tags.Sender] = "0" end
-    local quantity = Subscriptions[msg.Tags.Sender];
-    Subscriptions[msg.Tags.Sender] = utils.add(quantity, msg.Tags.Quantity)
+    if not Subs[msg.Tags.Sender] then Subs[msg.Tags.Sender] = "0" end
+    local quantity = Subs[msg.Tags.Sender];
+    Subs[msg.Tags.Sender] = utils.add(quantity, msg.Tags.Quantity)
 
     --local filters:{Filter} = systems.filters(msg.Tags.Filters);
     --local subscription_id = msg.Tags["subscription_id"]
 end
 
 local function close(msg: Message)
-    --removes relay from subscriptions and returns any remaining balance
-    if not Subscriptions[msg.Tags.Sender] then Subscriptions[msg.Tags.Sender] = "0" end
-    local quantity = Subscriptions[msg.Tags.Sender];
+    --removes relay from Subs and returns any remaining balance
+    if not Subs[msg.Tags.Sender] then Subs[msg.Tags.Sender] = "0" end
+    local quantity = Subs[msg.Tags.Sender];
     if utils.toNumber(quantity) <= 0 then return end
     --return funds and set balance to 0
-    Subscriptions[msg.From] = "0"
+    Subs[msg.From] = "0"
 end
 
 
