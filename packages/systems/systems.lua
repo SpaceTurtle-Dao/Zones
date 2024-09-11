@@ -13,8 +13,8 @@ function createEvent(msg)
     return _event
 end
 
-function event(msg)
-    local _event = json.decode(msg.data);
+function event(value)
+    local _event = json.decode(value);
     return _event
 end
 

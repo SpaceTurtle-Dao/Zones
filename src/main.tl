@@ -100,7 +100,7 @@ local function payedFeed(msg: Message)
     return 
   end
   if not Subs[msg.From] then return end
-  local _event = systems.event(msg);
+  local _event = systems.event(msg.Tags.Event);
   table.insert(Feed,_event)
 end
 
