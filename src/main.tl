@@ -1,6 +1,6 @@
 local bint = require('utils.bint')(256)
 local Event = require('event')
-local Filter = require('filter')
+--local Filter = require('filter')
 local rxJson = require('json')
 local systems = require('systems.systems')
 
@@ -37,8 +37,18 @@ local utils = {
 Variant = "0.0.1"
 Subscriptions = Subscriptions or { }
 Events = Events or { }
+Feed = Feed or { }
 Token = "" -- AO or wAR token
 
+local function fetchFeed(msg: Message)
+  local page = utils.toNumber(msg.Tags.Page)
+  local size = utils.toNumber(msg.Tags.Size)
+  local results = systems.fetch(Events,page,size)
+  ao.send({
+    Target = msg.From,
+    Data = rxJson.encode(results)
+  })
+end
 
 local function info(msg: Message)
   ao.send({
@@ -176,8 +186,7 @@ local function creditNotice(msg: Message)
   })
 end                
 
-local function debitNotice(msg: Message)
-end
+--local function debitNotice(msg: Message)end
 
 -- Add handlers
 Handlers.add('EVENT', Handlers.utils.hasMatchingTag('Action', 'EVENT'), event)
@@ -186,6 +195,8 @@ Handlers.add('Cost', Handlers.utils.hasMatchingTag('Action', 'Cost'), cost)
 Handlers.add('Token', Handlers.utils.hasMatchingTag('Action', 'Token'), token)
 Handlers.add('Profile', Handlers.utils.hasMatchingTag('Action', 'Profile'), profile)
 Handlers.add('Feed', Handlers.utils.hasMatchingTag('Action', 'Feed'), feed)
+Handlers.add('FetchFeed', Handlers.utils.hasMatchingTag('Action', 'FetchFeed'), fetchFeed)
 Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), info)
+Handlers.add('Withdraw', Handlers.utils.hasMatchingTag('Action', 'Withdraw'), withdraw)
 Handlers.add('Credit-Notice', Handlers.utils.hasMatchingTag('Action', 'Credit-Notice'), creditNotice)
-Handlers.add('Debit-Notice', Handlers.utils.hasMatchingTag('Action', 'Debit-Notice'), debitNotice)
+--Handlers.add('Debit-Notice', Handlers.utils.hasMatchingTag('Action', 'Debit-Notice'), debitNotice)
