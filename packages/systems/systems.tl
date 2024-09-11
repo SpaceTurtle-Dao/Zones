@@ -5,7 +5,8 @@ local Filter = require('filter')
 local systems = {}
 
 global record SystemsModule
-    event: function(value: string) : Event
+    createEvent: function(value: Message) : Event
+    event: function(value: Message) : Event
     filters: function(value: string) : {Filter}
     fetch: function(tbl:{Event}, page:number, size:number) :{Event}
 end

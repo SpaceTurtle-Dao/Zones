@@ -5,7 +5,6 @@ local record Event
     kind: number
     tags: {{string}}
     content: string
-    sig: string
 end
 
 return Event

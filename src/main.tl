@@ -62,7 +62,7 @@ end
 local function profile(msg: Message)
   --sets the profile event
   assert(ao.env.Process.Owner == msg.From)
-  local _event = systems.event(msg.Data);
+  local _event = systems.event(msg);
   if _event.kind == 0 then 
     Profile = _event
   end
@@ -93,7 +93,7 @@ end
 
 local function feed(msg: Message)
   if not Subs[msg.From] then return end
-  local _event = systems.event(msg.Data);
+  local _event = systems.event(msg);
   table.insert(Feed,_event)
 end
 
@@ -110,14 +110,14 @@ local function payedFeed(msg: Message)
     return 
   end
   if not Subs[msg.From] then return end
-  local _event = systems.event(msg.Data);
+  local _event = systems.event(msg);
   table.insert(Feed,_event)
 end
 
 local function event(msg: Message)
   --creates and event and inserts it into the Events table
   assert(ao.env.Process.Owner == msg.From)
-  local _event:Event = systems.event(msg.Data);
+  local _event:Event = systems.event(msg);
   table.insert(Events,_event)
   --Brodcast
 end

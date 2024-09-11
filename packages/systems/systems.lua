@@ -1,8 +1,20 @@
 local ao = require('ao')
 local json = require('json');
 
-function event(data)
-    local _event = json.decode(data);
+local eventId = 1
+
+function createEvent(msg)
+    local _event = json.decode(msg.data);
+    local currentId = eventId
+    eventId = eventId + 1
+    _event.id = tostring(currentId)
+    _event.pubkey = msg.From
+    _event.created_at = msg.Timestamp
+    return _event
+end
+
+function event(msg)
+    local _event = json.decode(msg.data);
     return _event
 end
 
@@ -30,6 +42,8 @@ function fetch(tbl, page, size)
 end
 
 return {
+    createEvent = createEvent,
     event = event,
     filters = filters,
+    fetch = fetch,
 }
