@@ -112,7 +112,7 @@ local function event(msg: Message)
   --Brodcast
 end
 
-local function req(msg: Message)
+local function subscribe(msg: Message)
   --subscribes to events from this relay
   if utils.toNumber(msg.Tags.Quantity) < utils.toNumber(SubscriptionCost) then
     --[[return funds and send message about insufficient funds]]-- 
@@ -165,8 +165,8 @@ local function creditNotice(msg: Message)
     payedFeed(msg)
     return
   end
-  if _type == "Subscription" then
-    req(msg)
+  if _type == "Subscribe" then
+    subscribe(msg)
     return
   end
   ao.send({
