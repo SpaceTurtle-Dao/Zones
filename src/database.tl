@@ -15,4 +15,4 @@ Variant = Variant or "0.0.1"
 Subscriptions = Subscriptions or { }
 Events = Events or { }
 Feed = Feed or { }
-Token = Token or "" -- AO or wAR token
+Token = Token or "WPyLgOqELOyN_BoTNdeEMZp5sz3RxDL19IGcs3A9IPc" -- AO or wAR token currently set to swappy tokens for testing

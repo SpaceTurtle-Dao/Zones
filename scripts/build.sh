@@ -15,9 +15,16 @@ cyan build -u
 
 cd build-lua
 
-amalg.lua -s token/main.lua -o ../build/token.lua \
-    token.utils.bint token.utils.tl-utils \
-    dummy.dummy
+amalg.lua -s main.lua -o ../build/relay.lua \
+    utils.bint utils.tl-utils \
+    relay_systems.event_system \
+    relay_systems.feed_system \
+    relay_systems.profile_system \
+    relay_systems.query_system \
+    relay_systems.subscription_system \
+    relay_systems.token_system \
+    database \
+    systems.systems
 
 
 # FINAL RESULT is build/main.lua

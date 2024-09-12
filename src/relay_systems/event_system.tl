@@ -1,6 +1,6 @@
 --local Filter = require('filter')
 local Event = require('event')
-local rxJson = require('json')
+--local rxJson = require('json')
 local systems = require('systems.systems')
 require('database')
 
@@ -10,13 +10,13 @@ local function event(msg: Message)
     local _event:Event = systems.createEvent(msg);
     table.insert(Events,_event)
     --Brodcast
-    for k,v in pairs(Subs) do
+    --[[for k,v in pairs(Subs) do
         ao.send({
             Target = v,
             Action = "Feed",
             Data = rxJson.encode(_event),
         }) 
-    end
+    end]]--
 end
 
 return {
