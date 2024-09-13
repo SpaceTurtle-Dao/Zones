@@ -108,8 +108,8 @@ Handlers.add('Activate', Handlers.utils.hasMatchingTag('Action', 'Activate'), fu
         local _owner = RelayRequest[msg.From];
         ao.send({
             Target = msg.Process,
-            Action = "Eval",
-            Data = "Owner = ".._owner,
+            Action = "SetOwner",
+            _Owner = _owner
         });
     end
 end)
