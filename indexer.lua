@@ -23,7 +23,7 @@ Utils = {
 Variant = "0.0.1"
 Token = "WPyLgOqELOyN_BoTNdeEMZp5sz3RxDL19IGcs3A9IPc" -- AO or wAR token currently set to swappy tokens for testing
 RelayCost = "1000000"
-RelayModule = ""
+RelayModule = "cNlipBptaF9JeFAf4wUmpi43EojNanIBos3EfNrEOWo"
 
 if not Relays then Relays = {} end
 if not RelayRequest then RelayRequest = {} end
@@ -73,6 +73,15 @@ Handlers.add('Relays', Handlers.utils.hasMatchingTag('Action', 'Relays'), functi
 end)
 
 Handlers.add('Request', Handlers.utils.hasMatchingTag('Action', 'Request'), function(msg)
+    if Relays[msg.From] then
+        local relay = Relays[msg.From]
+        ao.send({
+            Target = msg.From,
+            Relay = Relays[msg.From],
+            Text = "Looks like you already own a Relay "..relay
+        })
+        return
+    end
     ao.spawn(RelayModule, {})
     table.insert(RelayRequest,msg.From)
     ao.send({
