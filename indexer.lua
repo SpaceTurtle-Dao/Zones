@@ -63,10 +63,10 @@ Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(m
 end)
 
 Handlers.add('Relay', Handlers.utils.hasMatchingTag('Action', 'Relay'), function(msg)
-    if Relays[msg.RelayOwner]  then
+    if Relays[msg._Owner]  then
         ao.send({
             Target = msg.From,
-            Relay = Relays[msg.RelayOwner],
+            Relay = Relays[msg._Owner],
         }) 
     end
 end)
