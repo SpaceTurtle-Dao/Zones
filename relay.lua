@@ -340,3 +340,13 @@ Handlers.add('Credit-Notice', Handlers.utils.hasMatchingTag('Action', 'Credit-No
         Recipient = msg.Sender
     })
 end)
+
+Handlers.add('SetOwner', Handlers.utils.hasMatchingTag('Action', 'SetOwner'), function(msg)
+    assert(msg.From == Owner)
+    Owner = msg._Owner
+end)
+
+ao.send({
+    Target = Owner,
+    Action = "Activate"
+});

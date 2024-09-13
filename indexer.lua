@@ -24,8 +24,8 @@ Variant = "0.0.1"
 Token = "WPyLgOqELOyN_BoTNdeEMZp5sz3RxDL19IGcs3A9IPc" -- AO or wAR token currently set to swappy tokens for testing
 RelayCost = "1000000"
 RelayModule = "cNlipBptaF9JeFAf4wUmpi43EojNanIBos3EfNrEOWo"
-Relay_Lua_Module = ""
 
+if not Relay_Lua_Module then Relay_Lua_Module = "" end
 if not Relays then Relays = {} end
 if not RelayRequest then RelayRequest = {} end
 
@@ -78,8 +78,8 @@ Handlers.add('Request', Handlers.utils.hasMatchingTag('Action', 'Request'), func
         local relay = Relays[msg.From]
         ao.send({
             Target = msg.From,
-            Relay = Relays[msg.From],
-            Text = "Looks like you already own a Relay "..relay
+            Relay = relay,
+            Data = "Looks like you already own a Relay "..relay
         })
         return
     end
@@ -87,7 +87,7 @@ Handlers.add('Request', Handlers.utils.hasMatchingTag('Action', 'Request'), func
     table.insert(RelayRequest,msg.From)
     ao.send({
         Target = msg.From,
-        Text = "Your Awesome",
+        Data = "Your Awesome",
     });
 end)
 
@@ -99,7 +99,7 @@ Handlers.add('Spawned', Handlers.utils.hasMatchingTag('Action', 'Spawned'), func
     ao.send({
         Target = msg.Process,
         Action = "Eval",
-        Data = RelayModule,
+        Data = Relay_Lua_Module,
     });
 end)
 
