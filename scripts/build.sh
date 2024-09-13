@@ -8,23 +8,21 @@ fi
 
 # GENERATE LUA in /build-lua
 mkdir -p ./build
-mkdir -p ./build-lua
+#mkdir -p ./build-lua
 
 # build teal
-cyan build -u
+#cyan build -u
 
-cd build-lua
+cd src
 
-amalg.lua -s main.lua -o ../build/relay.lua \
-    utils.bint utils.tl-utils \
-    relay_systems.event_system \
-    relay_systems.feed_system \
-    relay_systems.profile_system \
+luacc -o ../build/relay.lua -i /relay_systems main \
+    database \
+    utils \
     relay_systems.query_system \
     relay_systems.subscription_system \
     relay_systems.token_system \
-    database \
-    systems.systems
-
+    #relay_systems.event_system \
+    #relay_systems.feed_system \
+    #relay_systems.profile_system \
 
 # FINAL RESULT is build/main.lua

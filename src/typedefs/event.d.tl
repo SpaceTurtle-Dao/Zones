@@ -1,4 +1,4 @@
-local record Event
+global record Event
     id: string
     pubkey: string
     created_at: string
@@ -6,5 +6,3 @@ local record Event
     tags: {{string}}
     content: string
 end
-
-return Event

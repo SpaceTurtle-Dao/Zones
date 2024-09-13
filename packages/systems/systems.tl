@@ -1,4 +1,4 @@
-local Event = require('event')
+require('event')
 local Filter = require('filter')
 
 -- this file only creates type definitions for the lua package
