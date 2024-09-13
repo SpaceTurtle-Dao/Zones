@@ -30,12 +30,20 @@ if not Relays then Relays = {} end
 if not RelayRequest then RelayRequest = {} end
 
 local function fetch(tbl, page, size)
+    local temp = {}
+    for k, v in pairs(tbl) do
+        local obj = {
+            owner = k,
+            relay = v
+        }
+        table.insert(temp,obj)
+    end
     local start = (page - 1) * size + 1
     local endPage = page * size
     local result = {};
     for i = start, endPage do
-        if tbl[i] then
-            table.insert(result, tbl[i])
+        if temp[i] then
+            table.insert(result, temp[i])
         else
             break
         end
