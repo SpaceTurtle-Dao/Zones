@@ -37,6 +37,7 @@ local function info(msg)
     ao.send({
         Target = msg.From,
         Token = Token,
+        Events = tostring(EventId),
         Profile = json.encode(Profile),
         SubscriptionCost = SubscriptionCost,
         FeedCost = FeedCost
