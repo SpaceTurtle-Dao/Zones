@@ -25,7 +25,7 @@ Variant = "0.0.1"
 Token = "WPyLgOqELOyN_BoTNdeEMZp5sz3RxDL19IGcs3A9IPc" -- AO or wAR token currently set to swappy tokens for testing
 SubscriptionCost = "1000000"
 FeedCost = "1000000"
-EventId = 1
+if not EventId then EventId = 1 end
 if not Profile then Profile = {} end
 if not SubscriptionRequest then SubscriptionRequest = {} end
 if not Subscriptions then Subscriptions = {} end
@@ -43,7 +43,41 @@ local function info(msg)
     })
 end
 
-local function fetch(tbl, page, size)
+local function hasTag(tags, filter)
+    for k, t in ipairs(tags) do
+        if filter[t[0]] then
+            if utils.includes(filter[t[0]], t[1]) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function filter(filters, events)
+    if #filters == 0 then return events end
+    local _events = {}
+    for k, v in ipairs(events) do
+        for _k, f in ipairs(filters) do
+            local isId = utils.includes(v.id, f.ids)
+            local isAuthor = utils.includes(v.pubkey, f.authors)
+            local isKind = utils.includes(v.kind, f.kinds)
+            local _hasTag = hasTag(filters, events)
+            if (isId or #f.ids == 0) 
+            and (isAuthor or #f.authors == 0) 
+            and (isKind or #f.kinds == 0) 
+            and f.since <= v.created_at
+            and v.created_at <= f["until"]
+            and #_events < f.limit
+            then
+                table.insert(_events, v)
+            end
+        end
+    end
+    return _events
+end
+
+--[[local function fetch(tbl, page, size)
     local start = (page - 1) * size + 1
     local endPage = page * size
     local result = {};
@@ -55,25 +89,23 @@ local function fetch(tbl, page, size)
         end
     end
     return result;
-end
+end]]--
 
 local function fetchFeed(msg)
-    local page = Utils.toNumber(msg.Page)
-    local size = Utils.toNumber(msg.Size)
-    local results = fetch(Feed, page, size)
+    local filters = json.decode(msg.Filters)
+    local _Feed = filter(filters, Feed)
     ao.send({
         Target = msg.From,
-        Data = json.encode(results)
+        Data = json.encode(_Feed)
     })
 end
 
 local function fetchEvents(msg)
-    local page = Utils.toNumber(msg.Page)
-    local size = Utils.toNumber(msg.Size)
-    local results = fetch(Events, page, size)
+    local filters = json.decode(msg.Filters)
+    local _Events = filter(filters, Events)
     ao.send({
         Target = msg.From,
-        Data = json.encode(results)
+        Data = json.encode(_Events)
     })
 end
 
@@ -95,9 +127,9 @@ local function createEvent(msg)
     local _event = json.decode(msg.Data);
     local currentId = EventId
     EventId = EventId + 1
-    _event.id = tostring(currentId)
+    _event.id = currentId
     _event.pubkey = ao.id
-    _event.created_at = msg.Timestamp
+    _event.created_at = Utils.toNumber(msg.Timestamp)
     return _event
 end
 
@@ -121,10 +153,10 @@ local function event(msg)
 end
 
 local function feed(msg)
-    local isSubscription = utils.includes(msg.From,Subscriptions)
+    local isSubscription = utils.includes(msg.From, Subscriptions)
     if isSubscription == false then return end
     local _event = json.decode(msg.Data);
-    table.insert(Feed,_event)
+    table.insert(Feed, _event)
 end
 
 local function subscribe(msg)
@@ -200,6 +232,7 @@ local function subscribed(msg)
         Subscriptions = temp
     end
 end
+
 
 Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(msg)
     info(msg)
