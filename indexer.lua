@@ -24,6 +24,7 @@ Variant = "0.0.1"
 Token = "WPyLgOqELOyN_BoTNdeEMZp5sz3RxDL19IGcs3A9IPc" -- AO or wAR token currently set to swappy tokens for testing
 RelayCost = "1000000"
 RelayModule = "cNlipBptaF9JeFAf4wUmpi43EojNanIBos3EfNrEOWo"
+Relay_Lua_Module = ""
 
 if not Relays then Relays = {} end
 if not RelayRequest then RelayRequest = {} end
@@ -102,7 +103,6 @@ Handlers.add('Spawned', Handlers.utils.hasMatchingTag('Action', 'Spawned'), func
     });
 end)
 
-
 Handlers.add('Activate', Handlers.utils.hasMatchingTag('Action', 'Activate'), function(msg)
     if RelayRequest[msg.From] then
         local _owner = RelayRequest[msg.From];
@@ -110,6 +110,13 @@ Handlers.add('Activate', Handlers.utils.hasMatchingTag('Action', 'Activate'), fu
             Target = msg.Process,
             Action = "Eval",
             Data = "Owner = ".._owner,
-        }); 
+        });
+    end
+end)
+
+Handlers.add('Relay_Lua_Module', Handlers.utils.hasMatchingTag('Action', 'Relay_Lua_Module'), function(msg)
+    --assert(msg.From == Owner) --[[REMOVE COMMENTS BEFORE GOING LIVE!!!!!!!]]
+    if msg.Data then
+        Relay_Lua_Module = msg.Data
     end
 end)
