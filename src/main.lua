@@ -20,7 +20,7 @@ Utils = {
     end
 }
 
-
+TAG_VALUES = {'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'}
 Variant = "0.0.1"
 Token = "WPyLgOqELOyN_BoTNdeEMZp5sz3RxDL19IGcs3A9IPc" -- AO or wAR token currently set to swappy tokens for testing
 SubscriptionCost = "1000000"
@@ -44,14 +44,42 @@ local function info(msg)
 end
 
 local function hasTag(tags, filter)
+    local result = false
+    local exist = false
+    for k, v in ipairs(TAG_VALUES) do
+        local uppercase = string.upper(v)
+        local lowercase = v
+        if filter[lowercase] or filter[uppercase] then
+            exist = true
+        end
+    end
+    
+    if exist == false then
+       return true 
+    end
+
+    if #tags == 0 then
+        return false 
+    end
+
     for k, t in ipairs(tags) do
-        if filter[t[0]] then
-            if utils.includes(filter[t[0]], t[1]) then
-                return true
+        local uppercase = string.upper(t[1])
+        local lowercase = string.lower(t[1])
+        if filter[lowercase] then
+            if utils.includes(t[2],filter[lowercase]) then
+                result = true
+                break
+            end
+        end
+        if filter[uppercase] then
+            if utils.includes(t[2],filter[uppercase]) then
+                result =  true
+                break
             end
         end
     end
-    return false
+
+    return result
 end
 
 local function filter(filters, events)
@@ -62,12 +90,13 @@ local function filter(filters, events)
             local isId = utils.includes(v.id, f.ids)
             local isAuthor = utils.includes(v.pubkey, f.authors)
             local isKind = utils.includes(v.kind, f.kinds)
-            local _hasTag = hasTag(filters, events)
+            local _hasTag = hasTag(v.tags,f)
             if (isId or #f.ids == 0) 
             and (isAuthor or #f.authors == 0) 
             and (isKind or #f.kinds == 0) 
             and f.since <= v.created_at
             and v.created_at <= f["until"]
+            and _hasTag
             and #_events < f.limit
             then
                 table.insert(_events, v)
