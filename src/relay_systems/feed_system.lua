@@ -5,12 +5,6 @@ local function feedCost(msg)
     utils.toNumber(msg.Cost)
     SubscriptionCost = msg.Cost
 end
-  
-local function feed(msg)
-    if not Subs[msg.From] then return end
-    local _event = event(msg.Data);
-    table.insert(Feed,_event)
-end
 
 return {
     feedCost = feedCost,

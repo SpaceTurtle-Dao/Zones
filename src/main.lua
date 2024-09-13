@@ -25,6 +25,7 @@ Variant = "0.0.1"
 Token = "WPyLgOqELOyN_BoTNdeEMZp5sz3RxDL19IGcs3A9IPc" -- AO or wAR token currently set to swappy tokens for testing
 SubscriptionCost = "1000000"
 FeedCost = "1000000"
+EventId = 1
 if not Profile then Profile = {} end
 if not SubscriptionRequest then SubscriptionRequest = {} end
 if not Subscriptions then Subscriptions = {} end
@@ -42,6 +43,40 @@ local function info(msg)
     })
 end
 
+local function fetch(tbl, page, size)
+    local start = (page - 1) * size + 1
+    local endPage = page * size
+    local result = {};
+    for i = start, endPage do
+        if tbl[i] then
+            table.insert(result, tbl[i])
+        else
+            break
+        end
+    end
+    return result;
+end
+
+local function fetchFeed(msg)
+    local page = Utils.toNumber(msg.Page)
+    local size = Utils.toNumber(msg.Size)
+    local results = fetch(Feed, page, size)
+    ao.send({
+        Target = msg.From,
+        Data = json.encode(results)
+    })
+end
+
+local function fetchEvents(msg)
+    local page = Utils.toNumber(msg.Page)
+    local size = Utils.toNumber(msg.Size)
+    local results = fetch(Events, page, size)
+    ao.send({
+        Target = msg.From,
+        Data = json.encode(results)
+    })
+end
+
 local function fetchSubs(msg)
     ao.send({
         Target = msg.From,
@@ -54,6 +89,42 @@ local function fetchSubscriptions(msg)
         Target = msg.From,
         Data = json.encode(Subscriptions)
     })
+end
+
+local function createEvent(msg)
+    local _event = json.decode(msg.Data);
+    local currentId = EventId
+    EventId = EventId + 1
+    _event.id = tostring(currentId)
+    _event.pubkey = ao.id
+    _event.created_at = msg.Timestamp
+    return _event
+end
+
+local function event(msg)
+    --creates and event and inserts it into the Events table
+    --assert(Owner == msg.From)
+    local _event = createEvent(msg);
+    table.insert(Events, _event)
+    ao.send({
+        Target = msg.From,
+        Data = json.encode(_event),
+    })
+    --Brodcast
+    for k, v in ipairs(Subs) do
+        ao.send({
+            Target = v,
+            Action = "Feed",
+            Data = json.encode(_event),
+        })
+    end
+end
+
+local function feed(msg)
+    local isSubscription = utils.includes(msg.From,Subscriptions)
+    if isSubscription == false then return end
+    local _event = json.decode(msg.Data);
+    table.insert(Feed,_event)
 end
 
 local function subscribe(msg)
@@ -134,12 +205,28 @@ Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(m
     info(msg)
 end)
 
+Handlers.add('FetchEvents', Handlers.utils.hasMatchingTag('Action', 'FetchEvents'), function(msg)
+    fetchEvents(msg)
+end)
+
+Handlers.add('FetchFeed', Handlers.utils.hasMatchingTag('Action', 'FetchFeed'), function(msg)
+    fetchFeed(msg)
+end)
+
 Handlers.add('Subs', Handlers.utils.hasMatchingTag('Action', 'Subs'), function(msg)
     fetchSubs(msg)
 end)
 
 Handlers.add('Subscriptions', Handlers.utils.hasMatchingTag('Action', 'Subscriptions'), function(msg)
     fetchSubscriptions(msg)
+end)
+
+Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), function(msg)
+    event(msg)
+end)
+
+Handlers.add('Feed', Handlers.utils.hasMatchingTag('Action', 'Feed'), function(msg)
+    feed(msg)
 end)
 
 Handlers.add('Subscribe', Handlers.utils.hasMatchingTag('Action', 'Subscribe'), function(msg)
