@@ -40,7 +40,9 @@ local function info(msg)
         Events = tostring(EventId),
         Profile = json.encode(Profile),
         SubscriptionCost = SubscriptionCost,
-        FeedCost = FeedCost
+        FeedCost = FeedCost,
+        Subs = #Subs,
+        Subscriptions = #Subscriptions
     })
 end
 
@@ -107,7 +109,7 @@ local function filter(filters, events)
     return _events
 end
 
---[[local function fetch(tbl, page, size)
+local function fetch(tbl, page, size)
     local start = (page - 1) * size + 1
     local endPage = page * size
     local result = {};
@@ -119,7 +121,7 @@ end
         end
     end
     return result;
-end]]--
+end
 
 local function fetchFeed(msg)
     local filters = json.decode(msg.Filters)
@@ -140,16 +142,20 @@ local function fetchEvents(msg)
 end
 
 local function fetchSubs(msg)
+    local page = Utils.toNumber(msg.Page)
+    local size = Utils.toNumber(msg.Size)
     ao.send({
         Target = msg.From,
-        Data = json.encode(Subs)
+        Data = json.encode(fetch(Subs, page, size))
     })
 end
 
 local function fetchSubscriptions(msg)
+    local page = Utils.toNumber(msg.Page)
+    local size = Utils.toNumber(msg.Size)
     ao.send({
         Target = msg.From,
-        Data = json.encode(Subscriptions)
+        Data = json.encode(fetch(Subscriptions, page, size))
     })
 end
 
