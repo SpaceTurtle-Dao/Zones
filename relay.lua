@@ -170,10 +170,12 @@ local function createEvent(msg)
 end
 
 local function event(msg)
-    --creates and event and inserts it into the Events table
-    --assert(Owner == msg.From)
+    assert(Owner == msg.From)
     local _event = createEvent(msg);
     table.insert(Events, _event)
+    if _event.kind == 0 then
+        Profile = _event
+    end
     ao.send({
         Target = msg.From,
         Data = json.encode(_event),
@@ -196,6 +198,7 @@ local function feed(msg)
 end
 
 local function subscribe(msg)
+    assert(Owner == msg.From)
     SubscriptionRequest[msg.Relay] = true
     ao.send({
         Target = msg.Token,
@@ -207,6 +210,7 @@ local function subscribe(msg)
 end
 
 local function unsubscribe(msg)
+    assert(Owner == msg.From)
     SubscriptionRequest[msg.Relay] = false
     ao.send({
         Target = msg.Relay,
