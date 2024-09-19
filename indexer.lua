@@ -52,13 +52,17 @@ local function fetch(tbl, page, size)
 end
 
 Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(msg)
-    ao.send({
-        Target = msg.From,
+    local data = {
         Relays = #Relays,
         RelayRequest = #RelayRequest,
         RelayCost = RelayCost,
         Token = Token,
         Variant = Variant
+    }
+    ao.send({
+        Target = msg.From,
+        Data = json.encode(data)
+
     })
 end)
 
@@ -66,7 +70,7 @@ Handlers.add('Relay', Handlers.utils.hasMatchingTag('Action', 'Relay'), function
     if Relays[msg._Owner]  then
         ao.send({
             Target = msg.From,
-            Relay = Relays[msg._Owner],
+            Data = Relays[msg._Owner],
         }) 
     end
 end)
@@ -77,7 +81,7 @@ Handlers.add('Relays', Handlers.utils.hasMatchingTag('Action', 'Relays'), functi
 
     ao.send({
         Target = msg.From,
-        Relays = json.encode(fetch(Relays, page, size)),
+        Data = json.encode(fetch(Relays, page, size)),
     }) 
 end)
 

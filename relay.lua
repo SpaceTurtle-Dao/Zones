@@ -250,6 +250,10 @@ local function unsubscribed(msg)
     })
 end
 
+local function isSubscribed(msg)
+    return utils.includes(msg.Relay, Subscriptions)
+end
+
 local function subscribed(msg)
     if SubscriptionRequest[msg.From] == true then
         --add to subscription list
@@ -315,6 +319,10 @@ end)
 
 Handlers.add('UnSubscribed', Handlers.utils.hasMatchingTag('Action', 'UnSubscribed'), function(msg)
     unsubscribed(msg)
+end)
+
+Handlers.add('IsSubscribed', Handlers.utils.hasMatchingTag('Action', 'IsSubscribed'), function(msg)
+    isSubscribed(msg)
 end)
 
 Handlers.add('Credit-Notice', Handlers.utils.hasMatchingTag('Action', 'Credit-Notice'), function(msg)
