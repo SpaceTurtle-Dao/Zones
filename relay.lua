@@ -251,7 +251,10 @@ local function unsubscribed(msg)
 end
 
 local function isSubscribed(msg)
-    return utils.includes(msg.Relay, Subscriptions)
+    ao.send({
+        Target = msg.From,
+        Data = utils.includes(msg.Relay, Subscriptions),
+    })
 end
 
 local function subscribed(msg)
