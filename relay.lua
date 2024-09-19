@@ -301,6 +301,10 @@ Handlers.add('Subscriptions', Handlers.utils.hasMatchingTag('Action', 'Subscript
     fetchSubscriptions(msg)
 end)
 
+Handlers.add('IsSubscribed', Handlers.utils.hasMatchingTag('Action', 'IsSubscribed'), function(msg)
+    isSubscribed(msg)
+end)
+
 Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), function(msg)
     event(msg)
 end)
@@ -322,10 +326,6 @@ end)
 
 Handlers.add('UnSubscribed', Handlers.utils.hasMatchingTag('Action', 'UnSubscribed'), function(msg)
     unsubscribed(msg)
-end)
-
-Handlers.add('IsSubscribed', Handlers.utils.hasMatchingTag('Action', 'IsSubscribed'), function(msg)
-    isSubscribed(msg)
 end)
 
 Handlers.add('Credit-Notice', Handlers.utils.hasMatchingTag('Action', 'Credit-Notice'), function(msg)
