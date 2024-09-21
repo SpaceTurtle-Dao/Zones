@@ -24,10 +24,13 @@ Variant = "0.0.1"
 Token = "WPyLgOqELOyN_BoTNdeEMZp5sz3RxDL19IGcs3A9IPc" -- AO or wAR token currently set to swappy tokens for testing
 RelayCost = "1000000"
 RelayModule = "cNlipBptaF9JeFAf4wUmpi43EojNanIBos3EfNrEOWo"
+RelayCount = 0
 
 if not Relay_Lua_Module then Relay_Lua_Module = "" end
 if not Relays then Relays = {} end
 if not RelayRequest then RelayRequest = {} end
+--Relays = {}
+--RelayRequest = {}
 
 local function fetch(tbl, page, size)
     local temp = {}
@@ -53,7 +56,7 @@ end
 
 Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(msg)
     local data = {
-        Relays = #Relays,
+        Relays = RelayCount,
         RelayRequest = #RelayRequest,
         RelayCost = RelayCost,
         Token = Token,
@@ -108,6 +111,7 @@ Handlers.add('Spawned', Handlers.utils.hasMatchingTag('Action', 'Spawned'), func
     if #RelayRequest < 1 then return end
     local _owner = table.remove(RelayRequest,1)
     Relays[_owner] = msg.Process
+    RelayCount = RelayCount + 1
     ao.send({
         Target = msg.Process,
         Action = "Eval",
@@ -116,13 +120,14 @@ Handlers.add('Spawned', Handlers.utils.hasMatchingTag('Action', 'Spawned'), func
 end)
 
 Handlers.add('Activate', Handlers.utils.hasMatchingTag('Action', 'Activate'), function(msg)
-    if RelayRequest[msg.From] then
-        local _owner = RelayRequest[msg.From];
-        ao.send({
-            Target = msg.Process,
-            Action = "SetOwner",
-            _Owner = _owner
-        });
+    for k, v in pairs(Relays) do
+        if v == msg.From then
+            ao.send({
+                Target = msg.From,
+                Action = "SetOwner",
+                _Owner = k
+            });
+        end
     end
 end)
 

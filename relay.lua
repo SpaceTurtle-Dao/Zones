@@ -34,15 +34,18 @@ if not Events then Events = {} end
 if not Feed then Feed = {} end
 
 local function info(msg)
-    ao.send({
-        Target = msg.From,
+    local data = {
         Token = Token,
         Events = tostring(EventId),
-        Profile = json.encode(Profile),
+        Profile = Profile,
         SubscriptionCost = SubscriptionCost,
         FeedCost = FeedCost,
         Subs = #Subs,
         Subscriptions = #Subscriptions
+    }
+    ao.send({
+        Target = msg.From,
+        Data = json.encode(data)
     })
 end
 
@@ -365,6 +368,13 @@ end)
 Handlers.add('SetOwner', Handlers.utils.hasMatchingTag('Action', 'SetOwner'), function(msg)
     assert(msg.From == Owner)
     Owner = msg._Owner
+end)
+
+Handlers.add('GetOwner', Handlers.utils.hasMatchingTag('Action', 'GetOwner'), function(msg)
+    ao.send({
+        Target = msg.From,
+        Data = Owner
+    });
 end)
 
 ao.send({
