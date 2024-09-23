@@ -29,8 +29,8 @@ RelayCount = 0
 if not Relay_Lua_Module then Relay_Lua_Module = "" end
 if not Relays then Relays = {} end
 if not RelayRequest then RelayRequest = {} end
---Relays = {}
---RelayRequest = {}
+Relays = {}
+RelayRequest = {}
 
 local function fetch(tbl, page, size)
     local temp = {}

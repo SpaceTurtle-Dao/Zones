@@ -43,6 +43,15 @@ function Spairs(t, order)
     end
 end
 
+local function some(arr, predicate)
+    for i = 1, #arr do
+        if predicate(arr[i]) then
+            return true
+        end
+    end
+    return false
+end
+
 function slice(tbl, start_idx, end_idx)
     local new_table = {}
     table.move(tbl, start_idx or 1, end_idx or #tbl, 1, new_table)
@@ -75,23 +84,6 @@ local function info(msg)
         Target = msg.From,
         Data = json.encode(data)
     })
-end
-
-local function hasTag(tags, filter)
-    local result = false
-    for k, v in ipairs(tags) do
-        for _k, _v in ipairs(v) do
-            if filter[_v[1]] and utils.includes(_v[2], filter[_v[1]]) then
-                result = true
-                break
-            end
-        end
-    end
-    return result
-end
-
-local function filter(filters, events)
-
 end
 
 local function filter(filter, events)
@@ -135,20 +127,14 @@ local function filter(filter, events)
     -- Handle additional dynamic filters (those that start with '#')
     for key, val in pairs(filter) do
         if string.sub(key, 1, 1) == "#" then
-            local tag = string.sub(key, 2, 2)
+            local tag = string.sub(key, 2)
             local keys = val
             _events = utils.filter(function(e)
-                local result = utils.find(
-                    function(t)
-                        return t[1] == tag and utils.includes(t[2], keys)
-                    end,
-                    e.tags
-                )
-                if result == nil then
-                    return false
-                else
-                    return true
-                end
+                return some(e.tags, function (t)
+                    return some(keys,function (k)
+                        return t[1] == tag and utils.includes(k,t)
+                    end)
+                end)
             end, events)
         end
     end
