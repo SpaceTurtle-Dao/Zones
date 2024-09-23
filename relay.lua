@@ -20,7 +20,35 @@ Utils = {
     end
 }
 
-TAG_VALUES = {'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'}
+function Spairs(t, order)
+    -- collect the keys
+    local keys = {}
+    for k in pairs(t) do keys[#keys + 1] = k end
+
+    -- if order function given, sort by it by passing the table and keys a, b,
+    -- otherwise just sort the keys
+    if order then
+        table.sort(keys, function(a, b) return order(t, a, b) end)
+    else
+        table.sort(keys)
+    end
+
+    -- return the iterator function
+    local i = 0
+    return function()
+        i = i + 1
+        if keys[i] then
+            return keys[i], t[keys[i]]
+        end
+    end
+end
+
+function slice(tbl, start_idx, end_idx)
+    local new_table = {}
+    table.move(tbl, start_idx or 1, end_idx or #tbl, 1, new_table)
+    return new_table
+end
+
 Variant = "0.0.1"
 Token = "WPyLgOqELOyN_BoTNdeEMZp5sz3RxDL19IGcs3A9IPc" -- AO or wAR token currently set to swappy tokens for testing
 SubscriptionCost = "1000000"
@@ -51,62 +79,77 @@ end
 
 local function hasTag(tags, filter)
     local result = false
-    local exist = false
-    for k, v in ipairs(TAG_VALUES) do
-        local uppercase = string.upper(v)
-        local lowercase = v
-        if filter[lowercase] or filter[uppercase] then
-            exist = true
-        end
-    end
-    
-    if exist == false then
-       return true 
-    end
-
-    if #tags == 0 then
-        return false 
-    end
-
-    for k, t in ipairs(tags) do
-        local uppercase = string.upper(t[1])
-        local lowercase = string.lower(t[1])
-        if filter[lowercase] then
-            if utils.includes(t[2],filter[lowercase]) then
+    for k, v in ipairs(tags) do
+        for _k, _v in ipairs(v) do
+            if filter[_v[1]] and utils.includes(_v[2], filter[_v[1]]) then
                 result = true
                 break
             end
         end
-        if filter[uppercase] then
-            if utils.includes(t[2],filter[uppercase]) then
-                result =  true
-                break
-            end
-        end
     end
-
     return result
 end
 
 local function filter(filters, events)
-    if #filters == 0 then return events end
-    local _events = {}
-    for k, v in ipairs(events) do
-        for _k, f in ipairs(filters) do
-            local isId = utils.includes(v.id, f.ids)
-            local isAuthor = utils.includes(v.pubkey, f.authors)
-            local isKind = utils.includes(v.kind, f.kinds)
-            local _hasTag = hasTag(v.tags,f)
-            if (isId or #f.ids == 0) 
-            and (isAuthor or #f.authors == 0) 
-            and (isKind or #f.kinds == 0) 
-            and f.since <= v.created_at
-            and v.created_at <= f["until"]
-            and _hasTag
-            and #_events < f.limit
-            then
-                table.insert(_events, v)
-            end
+
+end
+
+local function filter(filter, events)
+    local _events = events
+    table.sort(_events, function(a, b)
+        return a.created_at > b.created_at
+    end)
+    if filter.limit and filter.limit < #events then
+        _events = slice(0, filter.limit)
+    end
+
+    if filter.ids then
+        _events = utils.filter(function(event)
+            return utils.includes(event.id, filter.ids)
+        end, _events)
+    end
+
+    if filter.authors then
+        _events = utils.filter(function(event)
+            return utils.includes(event.pubkey, filter.authors)
+        end, _events)
+    end
+
+    if filter.kinds then
+        _events = utils.filter(function(event)
+            return utils.includes(event.kind, filter.kinds)
+        end, _events)
+    end
+
+    if filter.since then
+        _events = utils.filter(function(event)
+            return event.created_at > filter.since
+        end, _events)
+    end
+
+    if filter["until"] then
+        _events = utils.filter(function(event)
+            return event.created_at < filter["until"]
+        end, _events)
+    end
+    -- Handle additional dynamic filters (those that start with '#')
+    for key, val in pairs(filter) do
+        if string.sub(key, 1, 1) == "#" then
+            local tag = string.sub(key, 2, 2)
+            local keys = val
+            _events = utils.filter(function(e)
+                local result = utils.find(
+                    function(t)
+                        return t[1] == tag and utils.includes(t[2], keys)
+                    end,
+                    e.tags
+                )
+                if result == nil then
+                    return false
+                else
+                    return true
+                end
+            end, events)
         end
     end
     return _events
@@ -128,19 +171,25 @@ end
 
 local function fetchFeed(msg)
     local filters = json.decode(msg.Filters)
-    local _Feed = filter(filters, Feed)
+    local _feed = Feed
+    for k,v in ipairs(filters) do
+        _feed = filter(v, _feed)
+    end
     ao.send({
         Target = msg.From,
-        Data = json.encode(_Feed)
+        Data = json.encode(_feed)
     })
 end
 
 local function fetchEvents(msg)
     local filters = json.decode(msg.Filters)
-    local _Events = filter(filters, Events)
+    local _events = Events
+    for k,v in ipairs(filters) do
+        _events = filter(v, _events)
+    end
     ao.send({
         Target = msg.From,
-        Data = json.encode(_Events)
+        Data = json.encode(_events)
     })
 end
 
