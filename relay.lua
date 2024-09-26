@@ -239,11 +239,8 @@ local function subscribe(msg)
     assert(Owner == msg.From)
     SubscriptionRequest[msg.Relay] = true
     ao.send({
-        Target = msg.Token,
-        Action = "Transfer",
-        Quantity = msg.Quantity,
-        Recipient = msg.Relay,
-        ["X-Type"] = "SubscriptionRequest"
+        Target = msg.Relay,
+        Action = "SubscriptionRequest"
     })
 end
 

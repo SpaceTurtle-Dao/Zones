@@ -58,18 +58,8 @@ Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(m
 end)
 
 Handlers.add('DeleteRelays', Handlers.utils.hasMatchingTag('Action', 'DeleteRelays'), function(msg)
-    local data = {
-        Relays = RelayCount,
-        RelayRequest = #RelayRequest,
-        RelayCost = RelayCost,
-        Token = Token,
-        Variant = Variant
-    }
-    ao.send({
-        Target = msg.From,
-        Data = json.encode(data)
-
-    })
+    Relays = {}
+    RelayRequest = {}
 end)
 
 Handlers.add('Relay', Handlers.utils.hasMatchingTag('Action', 'Relay'), function(msg)
