@@ -257,19 +257,10 @@ local function unsubscribe(msg)
 end
 
 local function subscriptionRequest(msg)
-    if Utils.toNumber(msg.Quantity) < Utils.toNumber(SubscriptionCost) then
-        --[[return funds and send message about insufficient funds]] --
-        ao.send({
-            Target = msg.From,
-            Quantity = msg.Quantity,
-            Recipient = msg.Sender
-        })
-        return
-    end
-    utils.filter(function(val) return val ~= msg.Sender end, Subs)
-    table.insert(Subs, msg.Sender)
+    utils.filter(function(val) return val ~= msg.From end, Subs)
+    table.insert(Subs, msg.From)
     ao.send({
-        Target = msg.Sender,
+        Target = msg.From,
         Action = "Subscribed",
     })
 end
@@ -349,6 +340,10 @@ end)
 
 Handlers.add('Feed', Handlers.utils.hasMatchingTag('Action', 'Feed'), function(msg)
     feed(msg)
+end)
+
+Handlers.add('SubscriptionRequest', Handlers.utils.hasMatchingTag('Action', 'SubscriptionRequest'), function(msg)
+    subscriptionRequest(msg)
 end)
 
 Handlers.add('Subscribe', Handlers.utils.hasMatchingTag('Action', 'Subscribe'), function(msg)

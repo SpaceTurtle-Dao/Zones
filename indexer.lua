@@ -29,8 +29,6 @@ RelayCount = 0
 if not Relay_Lua_Module then Relay_Lua_Module = "" end
 if not Relays then Relays = {} end
 if not RelayRequest then RelayRequest = {} end
-Relays = {}
-RelayRequest = {}
 
 local function fetch(tbl, page, size)
     local temp = {}
@@ -55,6 +53,11 @@ local function fetch(tbl, page, size)
 end
 
 Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(msg)
+    Relays = {}
+    RelayRequest = {}
+end)
+
+Handlers.add('DeleteRelays', Handlers.utils.hasMatchingTag('Action', 'DeleteRelays'), function(msg)
     local data = {
         Relays = RelayCount,
         RelayRequest = #RelayRequest,
