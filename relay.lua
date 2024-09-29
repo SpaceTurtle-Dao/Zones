@@ -89,7 +89,7 @@ end
 local function filter(filter, events)
     local _events = events
     table.sort(_events, function(a, b)
-        return a.created_at > b.created_at
+        return a.Timestamp > b.Timestamp
     end)
     if filter.limit and filter.limit < #events then
         _events = slice(0, filter.limit)
@@ -97,35 +97,50 @@ local function filter(filter, events)
 
     if filter.ids then
         _events = utils.filter(function(event)
-            return utils.includes(event.id, filter.ids)
+            return utils.includes(event.Id, filter.ids)
         end, _events)
     end
 
     if filter.authors then
         _events = utils.filter(function(event)
-            return utils.includes(event.pubkey, filter.authors)
+            return utils.includes(event.From, filter.authors)
         end, _events)
     end
 
     if filter.kinds then
         _events = utils.filter(function(event)
-            return utils.includes(event.kind, filter.kinds)
+            return utils.includes(event.Kind, filter.kinds)
         end, _events)
     end
 
     if filter.since then
         _events = utils.filter(function(event)
-            return event.created_at > filter.since
+            return event.Timestamp > filter.since
         end, _events)
     end
 
     if filter["until"] then
         _events = utils.filter(function(event)
-            return event.created_at < filter["until"]
+            return event.Timestamp < filter["until"]
         end, _events)
     end
+
+    for key, tags in pairs(filter.tags) do
+        _events = utils.filter(function(e)
+            if e.Tags[key] then
+                local _tags = json.decode(e.Tags[key])
+                return some(_tags, function (t)
+                    return some(tags,function (k)
+                        return utils.includes(k,t)
+                    end)
+                end) 
+            end
+            return false
+        end, events)
+    end
+
     -- Handle additional dynamic filters (those that start with '#')
-    for key, val in pairs(filter) do
+    --[[for key, val in pairs(filter) do
         if string.sub(key, 1, 1) == "#" then
             local tag = string.sub(key, 2)
             local keys = val
@@ -137,7 +152,7 @@ local function filter(filter, events)
                 end)
             end, events)
         end
-    end
+    end]]--
     return _events
 end
 
