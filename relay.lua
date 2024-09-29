@@ -1,5 +1,5 @@
 -- Initialize global variables
-local ao = require('ao')
+--local ao = require('ao')
 local json = require('json');
 local bint = require('.bint')(256)
 local utils = require(".utils")
@@ -128,7 +128,7 @@ local function filter(filter, events)
     for key, tags in pairs(filter.tags) do
         _events = utils.filter(function(e)
             if e.Tags[key] then
-                local _tags = json.decode(e.Tags[key])
+                local _tags = e.Tags[key]
                 return some(_tags, function (t)
                     return some(tags,function (k)
                         return utils.includes(k,t)
@@ -419,7 +419,7 @@ Handlers.add('GetOwner', Handlers.utils.hasMatchingTag('Action', 'GetOwner'), fu
     });
 end)
 
-ao.send({
+--[[ao.send({
     Target = Owner,
     Action = "Activate"
-});
+});]]--
