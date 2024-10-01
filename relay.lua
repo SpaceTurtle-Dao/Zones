@@ -60,7 +60,6 @@ end
 
 Variant = "0.0.1"
 Token = "WPyLgOqELOyN_BoTNdeEMZp5sz3RxDL19IGcs3A9IPc" -- AO or wAR token currently set to swappy tokens for testing
-SubscriptionCost = "1000000"
 FeedCost = "1000000"
 if not EventId then EventId = 1 end
 if not Profile then Profile = {} end
@@ -72,10 +71,10 @@ if not Feed then Feed = {} end
 
 local function info(msg)
     local data = {
+        Process = ao.id,
         Token = Token,
         Events = tostring(EventId),
         Profile = Profile,
-        SubscriptionCost = SubscriptionCost,
         FeedCost = FeedCost,
         Subs = #Subs,
         Subscriptions = #Subscriptions
@@ -212,24 +211,13 @@ local function fetchSubscriptions(msg)
     })
 end
 
-local function createEvent(msg)
-    local _event = json.decode(msg.Data);
-    local currentId = EventId
-    EventId = EventId + 1
-    _event.id = currentId
-    _event.pubkey = ao.id
-    _event.created_at = Utils.toNumber(msg.Timestamp)
-    return _event
-end
-
 local function event(msg)
     assert(Owner == msg.From)
-    local _event = createEvent(msg);
-    table.insert(Events, _event)
-    if _event.kind == 0 then
-        Profile = _event
+    table.insert(Events, msg)
+    if msg.kind == "0" then
+        Profile = json.decode(msg.Data)
     end
-    ao.send({
+    --[[ao.send({
         Target = msg.From,
         Data = json.encode(_event),
     })
@@ -240,7 +228,7 @@ local function event(msg)
             Action = "Feed",
             Data = json.encode(_event),
         })
-    end
+    end]]--
 end
 
 local function feed(msg)
