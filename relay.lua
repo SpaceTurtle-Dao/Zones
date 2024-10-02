@@ -124,18 +124,20 @@ local function filter(filter, events)
         end, _events)
     end
 
-    for key, tags in pairs(filter.tags) do
-        _events = utils.filter(function(e)
-            if e.Tags[key] then
-                local _tags = e.Tags[key]
-                return some(_tags, function (t)
-                    return some(tags,function (k)
-                        return utils.includes(k,t)
+    if filter.tags then
+        for key, tags in pairs(filter.tags) do
+            _events = utils.filter(function(e)
+                if e.Tags[key] then
+                    local _tags = e.Tags[key]
+                    return some(_tags, function(t)
+                        return some(tags, function(k)
+                            return utils.includes(k, t)
+                        end)
                     end)
-                end) 
-            end
-            return false
-        end, events)
+                end
+                return false
+            end, events)
+        end
     end
 
     -- Handle additional dynamic filters (those that start with '#')
@@ -151,7 +153,7 @@ local function filter(filter, events)
                 end)
             end, events)
         end
-    end]]--
+    end]] --
     return _events
 end
 
@@ -172,7 +174,7 @@ end
 local function fetchFeed(msg)
     local filters = json.decode(msg.Filters)
     local _feed = Feed
-    for k,v in ipairs(filters) do
+    for k, v in ipairs(filters) do
         _feed = filter(v, _feed)
     end
     ao.send({
@@ -184,7 +186,7 @@ end
 local function fetchEvents(msg)
     local filters = json.decode(msg.Filters)
     local _events = Events
-    for k,v in ipairs(filters) do
+    for k, v in ipairs(filters) do
         _events = filter(v, _events)
     end
     ao.send({
@@ -213,10 +215,13 @@ end
 
 local function event(msg)
     assert(Owner == msg.From)
-    table.insert(Events, msg)
-    if msg.kind == "0" then
+    if msg.Kind == "0" then
+        Events = utils.filter(function(event)
+            return event.Kind ~= "0"
+        end, Events)
         Profile = json.decode(msg.Data)
     end
+    table.insert(Events, msg)
     --[[ao.send({
         Target = msg.From,
         Data = json.encode(_event),
@@ -228,7 +233,7 @@ local function event(msg)
             Action = "Feed",
             Data = json.encode(_event),
         })
-    end]]--
+    end]] --
 end
 
 local function feed(msg)
@@ -410,4 +415,4 @@ end)
 --[[ao.send({
     Target = Owner,
     Action = "Activate"
-});]]--
+});]] --
