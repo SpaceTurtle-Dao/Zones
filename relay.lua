@@ -214,26 +214,17 @@ local function fetchSubscriptions(msg)
 end
 
 local function event(msg)
-    assert(Owner == msg.From)
-    if msg.Kind == "0" then
-        Events = utils.filter(function(event)
-            return event.Kind ~= "0"
-        end, Events)
-        Profile = json.decode(msg.Data)
+    if Owner == msg.From then
+        if msg.Kind == "0" then
+            Events = utils.filter(function(event)
+                return event.Kind ~= "0"
+            end, Events)
+            Profile = json.decode(msg.Data)
+        end
+        table.insert(Events, msg)
+        --Brodcast
+        ao.assign({ Processes = Subs, Message = msg.id })
     end
-    table.insert(Events, msg)
-    --[[ao.send({
-        Target = msg.From,
-        Data = json.encode(_event),
-    })
-    --Brodcast
-    for k, v in ipairs(Subs) do
-        ao.send({
-            Target = v,
-            Action = "Feed",
-            Data = json.encode(_event),
-        })
-    end]] --
 end
 
 local function feed(msg)
