@@ -127,8 +127,8 @@ local function filter(filter, events)
     if filter.tags then
         for key, tags in pairs(filter.tags) do
             _events = utils.filter(function(e)
-                if e.Tags[key] then
-                    local _tags = e.Tags[key]
+                if e[key] then
+                    local _tags = e[key]
                     return some(_tags, function(t)
                         return some(tags, function(k)
                             return utils.includes(k, t)
@@ -139,21 +139,6 @@ local function filter(filter, events)
             end, events)
         end
     end
-
-    -- Handle additional dynamic filters (those that start with '#')
-    --[[for key, val in pairs(filter) do
-        if string.sub(key, 1, 1) == "#" then
-            local tag = string.sub(key, 2)
-            local keys = val
-            _events = utils.filter(function(e)
-                return some(e.tags, function (t)
-                    return some(keys,function (k)
-                        return t[1] == tag and utils.includes(k,t)
-                    end)
-                end)
-            end, events)
-        end
-    end]] --
     return _events
 end
 
@@ -213,22 +198,13 @@ local function fetchSubscriptions(msg)
     })
 end
 
-local function event(msg)
-    if ao.id == msg.From then
-        if msg.Kind == "0" then
-            Events = utils.filter(function(event)
-                return event.Kind ~= "0"
-            end, Events)
-            Profile = json.decode(msg.Content)
-        else
-            if #Subs > 0 then
-                ao.assign({ Processes = Subs, Message = msg.Id })
-            end
-            
-        end
-        table.insert(Events, msg)
-    end
+local function feed(msg)
+    local isSubscription = utils.includes(msg.From, Subscriptions)
+    if isSubscription == false then return end
+    table.insert(Feed, msg)
+end
 
+local function event(msg)
     if Owner == msg.From then
         local message = {
             Target = ao.id,
@@ -237,27 +213,35 @@ local function event(msg)
             Tags = msg.Tags
         }
         ao.send(message)
+        return
+    else
+        if ao.id == msg.From then
+            if msg.Kind == "0" then
+                Events = utils.filter(function(event)
+                    return event.Kind ~= "0"
+                end, Events)
+                Profile = json.decode(msg.Content)
+            else
+                if #Subs > 0 then
+                    local _Subs = utils.filter(function(sub)
+                        return sub ~= ao.id
+                    end, Subs)
+                    table.insert(Feed, msg)
+                    ao.assign({ Processes = _Subs, Message = msg.Id })
+                end
+                
+            end
+            table.insert(Events, msg)
+            return
+        else
+            feed(msg)    
+        end
     end
-
-    --[[ao.send({
-        Target = msg.From,
-        Data = json.encode(_event),
-    })
-    --Brodcast
-    for k, v in ipairs(Subs) do
-        ao.send({
-            Target = v,
-            Action = "Feed",
-            Data = json.encode(_event),
-        })
-    end]] --
 end
 
-local function feed(msg)
-    local isSubscription = utils.includes(msg.From, Subscriptions)
-    if isSubscription == false then return end
-    local _event = json.decode(msg.Data);
-    table.insert(Feed, _event)
+if Owner ~= msg.From then 
+    feed(msg)
+    return
 end
 
 local function subscribe(msg)
@@ -360,9 +344,9 @@ Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), function
     event(msg)
 end)
 
-Handlers.add('Feed', Handlers.utils.hasMatchingTag('Action', 'Feed'), function(msg)
+--[[Handlers.add('Feed', Handlers.utils.hasMatchingTag('Action', 'Feed'), function(msg)
     feed(msg)
-end)
+end)]]--
 
 Handlers.add('SubscriptionRequest', Handlers.utils.hasMatchingTag('Action', 'SubscriptionRequest'), function(msg)
     subscriptionRequest(msg)
