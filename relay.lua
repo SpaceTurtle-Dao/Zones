@@ -219,9 +219,12 @@ local function event(msg)
             Events = utils.filter(function(event)
                 return event.Kind ~= "0"
             end, Events)
-            Profile = json.decode(msg.Data)
+            Profile = json.decode(msg.Content)
         else
-            ao.assign({ Processes = Subs, Message = msg.id })
+            if #Subs > 0 then
+                ao.assign({ Processes = Subs, Message = msg.Id })
+            end
+            
         end
         table.insert(Events, msg)
     end
@@ -233,9 +236,6 @@ local function event(msg)
             Data = msg.Data,
             Tags = msg.Tags
         }
-        --[[for k, v in ipairs(msg.Tags) do
-            message[k] = v
-        end]]--
         ao.send(message)
     end
 
