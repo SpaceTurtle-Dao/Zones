@@ -223,25 +223,20 @@ local function event(msg)
                 Profile = json.decode(msg.Content)
             else
                 if #Subs > 0 then
-                    local _Subs = utils.filter(function(sub)
-                        return sub ~= ao.id
-                    end, Subs)
-                    table.insert(Feed, msg)
-                    ao.assign({ Processes = _Subs, Message = msg.Id })
+                    for k, v in ipairs(Subs) do
+                        local message = {
+                            Target = v,
+                            Action = "Feed",
+                            Data = msg.Data,
+                            Tags = msg.Tags
+                        }
+                        ao.send(message)
+                    end
                 end
-                
             end
             table.insert(Events, msg)
-            return
-        else
-            feed(msg)    
         end
     end
-end
-
-if Owner ~= msg.From then 
-    feed(msg)
-    return
 end
 
 local function subscribe(msg)
@@ -344,9 +339,9 @@ Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), function
     event(msg)
 end)
 
---[[Handlers.add('Feed', Handlers.utils.hasMatchingTag('Action', 'Feed'), function(msg)
+Handlers.add('Feed', Handlers.utils.hasMatchingTag('Action', 'Feed'), function(msg)
     feed(msg)
-end)]]--
+end)
 
 Handlers.add('SubscriptionRequest', Handlers.utils.hasMatchingTag('Action', 'SubscriptionRequest'), function(msg)
     subscriptionRequest(msg)
