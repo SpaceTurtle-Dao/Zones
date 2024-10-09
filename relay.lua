@@ -205,7 +205,7 @@ local function feed(msg)
 end
 
 local function event(msg)
-    if Owner == msg.From then
+    if msg.From == Owner then
         local message = {
             Target = ao.id,
             Action = "Event",
@@ -214,28 +214,29 @@ local function event(msg)
         }
         ao.send(message)
         return
-    else
-        if ao.id == msg.From then
-            if msg.Kind == "0" then
-                Events = utils.filter(function(event)
-                    return event.Kind ~= "0"
-                end, Events)
-                Profile = json.decode(msg.Content)
-            else
-                if #Subs > 0 then
-                    for k, v in ipairs(Subs) do
-                        local message = {
-                            Target = v,
-                            Action = "Feed",
-                            Data = msg.Data,
-                            Tags = msg.Tags
-                        }
-                        ao.send(message)
-                    end
-                end
+    end
+
+    if msg.Kind == "7" and msg.Content and msg.e and msg.p then
+        table.insert(Events, msg)
+    elseif msg.From == ao.id and msg.Kind == "0" and msg.Content then
+        Events = utils.filter(function(event)
+            return event.Kind ~= "0"
+        end, Events)
+        Profile = json.decode(msg.Content)
+        table.insert(Events, msg)
+    elseif msg.From == ao.id then
+        if #Subs > 0 then
+            for k, v in ipairs(Subs) do
+                local message = {
+                    Target = v,
+                    Action = "Feed",
+                    Data = msg.Data,
+                    Tags = msg.Tags
+                }
+                ao.send(message)
             end
-            table.insert(Events, msg)
         end
+        table.insert(Events, msg)
     end
 end
 
