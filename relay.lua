@@ -128,11 +128,9 @@ local function filter(filter, events)
         for key, tags in pairs(filter.tags) do
             _events = utils.filter(function(e)
                 if e[key] then
-                    local _tags = e[key]
+                    local _tags = json.decode(e[key])
                     return some(_tags, function(t)
-                        return some(tags, function(k)
-                            return utils.includes(k, t)
-                        end)
+                        return utils.includes(t, tags)
                     end)
                 end
                 return false
