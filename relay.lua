@@ -128,11 +128,9 @@ local function filter(filter, events)
         for key, tags in pairs(filter.tags) do
             _events = utils.filter(function(e)
                 if e[key] then
-                    local _tags = e[key]
+                    local _tags = json.decode(e[key])
                     return some(_tags, function(t)
-                        return some(tags, function(k)
-                            return utils.includes(k, t)
-                        end)
+                        return utils.includes(t, tags)
                     end)
                 end
                 return false
@@ -205,7 +203,7 @@ local function feed(msg)
 end
 
 local function event(msg)
-    if Owner == msg.From then
+    if msg.From == Owner then
         local message = {
             Target = ao.id,
             Action = "Event",
@@ -214,28 +212,38 @@ local function event(msg)
         }
         ao.send(message)
         return
-    else
-        if ao.id == msg.From then
-            if msg.Kind == "0" then
-                Events = utils.filter(function(event)
-                    return event.Kind ~= "0"
-                end, Events)
-                Profile = json.decode(msg.Content)
-            else
-                if #Subs > 0 then
-                    for k, v in ipairs(Subs) do
-                        local message = {
-                            Target = v,
-                            Action = "Feed",
-                            Data = msg.Data,
-                            Tags = msg.Tags
-                        }
-                        ao.send(message)
-                    end
-                end
-            end
-            table.insert(Events, msg)
+    end
+    if msg.Kind == "7" and msg.Content and msg.e and msg.p then
+        local _event = utils.find(
+            function(event) return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and msg.p == event.p end,
+            Events
+        )
+        if _event then
+            Events = utils.filter(function(event)
+                return event.Id ~= _event.Id
+            end, Events)
+        else
+            table.insert(Events, msg)    
         end
+    elseif msg.From == ao.id and msg.Kind == "0" and msg.Content then
+        Events = utils.filter(function(event)
+            return event.Kind ~= "0"
+        end, Events)
+        Profile = json.decode(msg.Content)
+        table.insert(Events, msg)
+    elseif msg.From == ao.id then
+        if #Subs > 0 then
+            for k, v in ipairs(Subs) do
+                local message = {
+                    Target = v,
+                    Action = "Feed",
+                    Data = msg.Data,
+                    Tags = msg.Tags
+                }
+                ao.send(message)
+            end
+        end
+        table.insert(Events, msg)
     end
 end
 
