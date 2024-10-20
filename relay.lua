@@ -91,7 +91,7 @@ local function filter(filter, events)
         return a.Timestamp > b.Timestamp
     end)
     if filter.limit and filter.limit < #events then
-        _events = slice(0, filter.limit)
+        _events = slice(events, 1, filter.limit)
     end
 
     if filter.ids then
@@ -212,7 +212,8 @@ local function event(msg)
     end
     if msg.Kind == "7" and msg.Content and msg.e and msg.p then
         local _event = utils.find(
-            function(event) return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and msg.p == event.p end,
+            function(event) return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and
+                msg.p == event.p end,
             Events
         )
         if _event then
@@ -220,7 +221,7 @@ local function event(msg)
                 return event.Id ~= _event.Id
             end, Events)
         else
-            table.insert(Events, msg)    
+            table.insert(Events, msg)
         end
     elseif msg.From == ao.id and msg.Kind == "0" and msg.Content then
         Events = utils.filter(function(event)
