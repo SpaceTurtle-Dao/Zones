@@ -233,7 +233,9 @@ local function event(msg)
             for k, v in ipairs(Subs) do
                 local message = {
                     Target = v,
-                    Action = "Feed"
+                    Action = "Feed",
+                    Data = msg.Data,
+                    Tags = msg.Tags
                 }
                 message["X-Id"] = msg.Id
                 ao.send(message)
