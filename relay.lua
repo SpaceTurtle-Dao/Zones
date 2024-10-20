@@ -128,10 +128,7 @@ local function filter(filter, events)
         for key, tags in pairs(filter.tags) do
             _events = utils.filter(function(e)
                 if e[key] then
-                    local _tags = json.decode(e[key])
-                    return some(_tags, function(t)
-                        return utils.includes(t, tags)
-                    end)
+                    return utils.includes(e[key], tags)
                 end
                 return false
             end, events)
@@ -236,10 +233,9 @@ local function event(msg)
             for k, v in ipairs(Subs) do
                 local message = {
                     Target = v,
-                    Action = "Feed",
-                    Data = msg.Data,
-                    Tags = msg.Tags
+                    Action = "Feed"
                 }
+                message["X-Id"] = msg.Id
                 ao.send(message)
             end
         end
