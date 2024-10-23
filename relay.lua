@@ -200,6 +200,10 @@ local function feed(msg)
 end
 
 local function event(msg)
+    if msg.From ~= Owner and msg.From ~= ao.id then
+        feed(msg)
+        return
+    end
     if msg.From == Owner then
         local message = {
             Target = ao.id,
@@ -234,7 +238,7 @@ local function event(msg)
             for k, v in ipairs(Subs) do
                 local message = {
                     Target = v,
-                    Action = "Feed",
+                    Action = "Event",
                     Data = msg.Data,
                     Tags = msg.Tags
                 }
@@ -247,7 +251,7 @@ local function event(msg)
 end
 
 local function subscribe(msg)
-    assert(Owner == msg.From)
+    assert(Owner == msg.From and msg.Relay ~= ao.id)
     SubscriptionRequest[msg.Relay] = true
     ao.send({
         Target = msg.Relay,
