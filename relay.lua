@@ -67,7 +67,6 @@ if not SubscriptionRequest then SubscriptionRequest = {} end
 if not Subscriptions then Subscriptions = {} end
 if not Subs then Subs = {} end
 if not Events then Events = {} end
-if not Feed then Feed = {} end
 
 local function info(msg)
     local data = {
@@ -151,18 +150,6 @@ local function fetch(tbl, page, size)
     return result;
 end
 
-local function fetchFeed(msg)
-    local filters = json.decode(msg.Filters)
-    local _feed = Feed
-    for k, v in ipairs(filters) do
-        _feed = filter(v, _feed)
-    end
-    ao.send({
-        Target = msg.From,
-        Data = json.encode(_feed)
-    })
-end
-
 local function fetchEvents(msg)
     local filters = json.decode(msg.Filters)
     local _events = Events
@@ -196,7 +183,7 @@ end
 local function feed(msg)
     local isSubscription = utils.includes(msg.From, Subscriptions)
     if isSubscription == false then return end
-    table.insert(Feed, msg)
+    table.insert(Events, msg)
 end
 
 local function event(msg)
@@ -330,10 +317,6 @@ Handlers.add('FetchEvents', Handlers.utils.hasMatchingTag('Action', 'FetchEvents
     fetchEvents(msg)
 end)
 
-Handlers.add('FetchFeed', Handlers.utils.hasMatchingTag('Action', 'FetchFeed'), function(msg)
-    fetchFeed(msg)
-end)
-
 Handlers.add('Subs', Handlers.utils.hasMatchingTag('Action', 'Subs'), function(msg)
     fetchSubs(msg)
 end)
@@ -348,10 +331,6 @@ end)
 
 Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), function(msg)
     event(msg)
-end)
-
-Handlers.add('Feed', Handlers.utils.hasMatchingTag('Action', 'Feed'), function(msg)
-    feed(msg)
 end)
 
 Handlers.add('SubscriptionRequest', Handlers.utils.hasMatchingTag('Action', 'SubscriptionRequest'), function(msg)
