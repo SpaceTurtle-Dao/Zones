@@ -65,6 +65,7 @@ Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(m
 end)
 
 Handlers.add('Relay-Module', Handlers.utils.hasMatchingTag('Action', 'Relay-Module'), function(msg)
+    --[[REMOVE BEFORE GOING LIVE!!!!!!!]]
     ao.send({
         Target = msg.From,
         Data = Relay_Lua_Module
@@ -113,7 +114,7 @@ Handlers.add('Request', Handlers.utils.hasMatchingTag('Action', 'Request'), func
     });
 end)
 
-Handlers.add('Spawned', Handlers.utils.hasMatchingTag('Action', 'Spawned'), function(msg)
+--[[Handlers.add('Spawned', Handlers.utils.hasMatchingTag('Action', 'Spawned'), function(msg)
     assert(msg.From == ao.id, "Not Authorized");
     if #RelayRequest < 1 then return end
     local _owner = table.remove(RelayRequest,1)
@@ -136,7 +137,7 @@ Handlers.add('Activate', Handlers.utils.hasMatchingTag('Action', 'Activate'), fu
             });
         end
     end
-end)
+end)]]--
 
 Handlers.add('SetRelay', Handlers.utils.hasMatchingTag('Action', 'SetRelay'), function(msg)
     Relays[msg.From] = msg.Relay

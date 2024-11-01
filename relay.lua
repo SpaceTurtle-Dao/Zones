@@ -73,11 +73,19 @@ local function info(msg)
         Process = ao.id,
         Token = Token,
         Events = tostring(EventId),
-        Profile = Profile,
+        Profile = {},
+        CreatedAt = "",
         FeedCost = FeedCost,
         Subs = #Subs,
         Subscriptions = #Subscriptions
     }
+    if Profile.Content then
+        data.Profile = json.decode(Profile.Content)
+    end
+
+    if Profile.Timestamp then
+        CreatedAt = Profile.Timestamp
+    end
     ao.send({
         Target = msg.From,
         Data = json.encode(data)
@@ -218,7 +226,7 @@ local function event(msg)
         Events = utils.filter(function(event)
             return event.Kind ~= "0"
         end, Events)
-        Profile = json.decode(msg.Content)
+        Profile = msg
         table.insert(Events, msg)
     elseif msg.From == ao.id then
         if #Subs > 0 then
