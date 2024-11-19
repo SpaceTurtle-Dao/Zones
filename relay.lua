@@ -84,7 +84,7 @@ local function info(msg)
     end
 
     if Profile.Timestamp then
-        CreatedAt = Profile.Timestamp
+        data.CreatedAt = Profile.Timestamp
     end
     ao.send({
         Target = msg.From,
