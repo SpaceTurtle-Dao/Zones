@@ -7,7 +7,7 @@ const RELAY_LUA_MODULE = readFileSync("./relay.lua").toString();
 const arweave = Arweave.init({});
 
 const wallet = await arweave.wallets.generate();
-const processId = "VU_wocPzsgUfGmWqMwLkJ8cCSsQTJe3K2ZIiz85KO7A";
+const processId = "0TCTmjHjq2i-GKUmd6w5BeUPOBCG8KK7wNhyE4bK04g";
 
 const uploadModule = async (handler,module) => {
     try {

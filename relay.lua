@@ -67,18 +67,25 @@ if not SubscriptionRequest then SubscriptionRequest = {} end
 if not Subscriptions then Subscriptions = {} end
 if not Subs then Subs = {} end
 if not Events then Events = {} end
-if not Feed then Feed = {} end
 
 local function info(msg)
     local data = {
         Process = ao.id,
         Token = Token,
         Events = tostring(EventId),
-        Profile = Profile,
+        Profile = {},
+        CreatedAt = "",
         FeedCost = FeedCost,
         Subs = #Subs,
         Subscriptions = #Subscriptions
     }
+    if Profile.Content then
+        data.Profile = json.decode(Profile.Content)
+    end
+
+    if Profile.Timestamp then
+        data.CreatedAt = Profile.Timestamp
+    end
     ao.send({
         Target = msg.From,
         Data = json.encode(data)
@@ -91,7 +98,7 @@ local function filter(filter, events)
         return a.Timestamp > b.Timestamp
     end)
     if filter.limit and filter.limit < #events then
-        _events = slice(0, filter.limit)
+        _events = slice(events, 1, filter.limit)
     end
 
     if filter.ids then
@@ -128,10 +135,7 @@ local function filter(filter, events)
         for key, tags in pairs(filter.tags) do
             _events = utils.filter(function(e)
                 if e[key] then
-                    local _tags = json.decode(e[key])
-                    return some(_tags, function(t)
-                        return utils.includes(t, tags)
-                    end)
+                    return utils.includes(e[key], tags)
                 end
                 return false
             end, events)
@@ -152,18 +156,6 @@ local function fetch(tbl, page, size)
         end
     end
     return result;
-end
-
-local function fetchFeed(msg)
-    local filters = json.decode(msg.Filters)
-    local _feed = Feed
-    for k, v in ipairs(filters) do
-        _feed = filter(v, _feed)
-    end
-    ao.send({
-        Target = msg.From,
-        Data = json.encode(_feed)
-    })
 end
 
 local function fetchEvents(msg)
@@ -199,10 +191,14 @@ end
 local function feed(msg)
     local isSubscription = utils.includes(msg.From, Subscriptions)
     if isSubscription == false then return end
-    table.insert(Feed, msg)
+    table.insert(Events, msg)
 end
 
 local function event(msg)
+    if msg.From ~= Owner and msg.From ~= ao.id then
+        feed(msg)
+        return
+    end
     if msg.From == Owner then
         local message = {
             Target = ao.id,
@@ -215,7 +211,8 @@ local function event(msg)
     end
     if msg.Kind == "7" and msg.Content and msg.e and msg.p then
         local _event = utils.find(
-            function(event) return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and msg.p == event.p end,
+            function(event) return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and
+                msg.p == event.p end,
             Events
         )
         if _event then
@@ -223,23 +220,24 @@ local function event(msg)
                 return event.Id ~= _event.Id
             end, Events)
         else
-            table.insert(Events, msg)    
+            table.insert(Events, msg)
         end
     elseif msg.From == ao.id and msg.Kind == "0" and msg.Content then
         Events = utils.filter(function(event)
             return event.Kind ~= "0"
         end, Events)
-        Profile = json.decode(msg.Content)
+        Profile = msg
         table.insert(Events, msg)
     elseif msg.From == ao.id then
         if #Subs > 0 then
             for k, v in ipairs(Subs) do
                 local message = {
                     Target = v,
-                    Action = "Feed",
+                    Action = "Event",
                     Data = msg.Data,
                     Tags = msg.Tags
                 }
+                message["X-Id"] = msg.Id
                 ao.send(message)
             end
         end
@@ -248,7 +246,7 @@ local function event(msg)
 end
 
 local function subscribe(msg)
-    assert(Owner == msg.From)
+    assert(Owner == msg.From and msg.Relay ~= ao.id)
     SubscriptionRequest[msg.Relay] = true
     ao.send({
         Target = msg.Relay,
@@ -327,10 +325,6 @@ Handlers.add('FetchEvents', Handlers.utils.hasMatchingTag('Action', 'FetchEvents
     fetchEvents(msg)
 end)
 
-Handlers.add('FetchFeed', Handlers.utils.hasMatchingTag('Action', 'FetchFeed'), function(msg)
-    fetchFeed(msg)
-end)
-
 Handlers.add('Subs', Handlers.utils.hasMatchingTag('Action', 'Subs'), function(msg)
     fetchSubs(msg)
 end)
@@ -345,10 +339,6 @@ end)
 
 Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), function(msg)
     event(msg)
-end)
-
-Handlers.add('Feed', Handlers.utils.hasMatchingTag('Action', 'Feed'), function(msg)
-    feed(msg)
 end)
 
 Handlers.add('SubscriptionRequest', Handlers.utils.hasMatchingTag('Action', 'SubscriptionRequest'), function(msg)
