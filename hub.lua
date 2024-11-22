@@ -153,11 +153,6 @@ local function event(msg)
         else
             table.insert(Events, msg)
         end
-    elseif msg.Kind == "0" and msg.Content then
-        Events = utils.filter(function(event)
-            return event.Kind ~= "0" and event.From ~= msg.From
-        end, Events)
-        table.insert(Events, msg)
     else
         table.insert(Events, msg)
     end
@@ -171,4 +166,8 @@ end)
 
 Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), function(msg)
     event(msg)
+end)
+
+Handlers.add('DeleteEvents', Handlers.utils.hasMatchingTag('Action', 'DeleteEvents'), function(msg)
+    Events = {}
 end)
