@@ -1,6 +1,6 @@
 return {
   source_dir = "src",
-  include_dir = { "src/typedefs", "src/", "packages/" },
+  include_dir = { "src/typedefs", "src/relay_systems", "src/", "packages/" },
   include = {
     "**/**.tl",
   },
@@ -15,5 +15,5 @@ return {
   global_env_def = "ao",
   module_name = "amm",
   gen_target = "5.3",
-  dont_prune = { "build-lua/dummy", "build-lua/dummy/**/*" }
+  dont_prune = { "build-lua/systems", "build-lua/systems/**/*" }
 }
