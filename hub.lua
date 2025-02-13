@@ -99,7 +99,7 @@ local function filter(filter, events)
 
     if filter.search then
         _events = utils.filter(function(event)
-            return string.find(event.Content, filter.search, 1, true)
+            return string.find(string.lower(event.Content), string.lower(filter.search))
         end, _events)
     end
 
