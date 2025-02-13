@@ -97,6 +97,12 @@ local function filter(filter, events)
         end, _events)
     end
 
+    if filter.search then
+        _events = utils.filter(function(event)
+            return string.find(event.Content, filter.search, 1, true)
+        end, _events)
+    end
+
     if filter.tags then
         for key, tags in pairs(filter.tags) do
             _events = utils.filter(function(e)
