@@ -169,7 +169,6 @@ local function event(msg)
     end
 end
 
-
 Handlers.add('FetchEvents', Handlers.utils.hasMatchingTag('Action', 'FetchEvents'), function(msg)
     fetchEvents(msg)
 end)
@@ -179,6 +178,6 @@ Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), function
     event(msg)
 end)
 
-Handlers.add('DeleteEvents', Handlers.utils.hasMatchingTag('Action', 'DeleteEvents'), function(msg)
+--[[Handlers.add('DeleteEvents', Handlers.utils.hasMatchingTag('Action', 'DeleteEvents'), function(msg)
     Events = {}
-end)
+end)]]--
