@@ -64,7 +64,7 @@ if not Events then Events = {} end
 local function filter(filter, events)
     local _events = events
     table.sort(_events, function(a, b)
-        return a.Timestamp > b.Timestamp
+        return a.timestamp > b.timestamp
     end)
 
     if filter.ids then
@@ -87,13 +87,13 @@ local function filter(filter, events)
 
     if filter.since then
         _events = utils.filter(function(event)
-            return event.Timestamp > filter.since
+            return event.timestamp > filter.since
         end, _events)
     end
 
     if filter["until"] then
         _events = utils.filter(function(event)
-            return event.Timestamp < filter["until"]
+            return event.timestamp < filter["until"]
         end, _events)
     end
 
