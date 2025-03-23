@@ -179,7 +179,7 @@ end
 
 local function event(msg)
     local followLists = utils.filter(function(event)
-        return utils.includes(event.Kind, ["3"])
+        return utils.includes(event.Kind, {"3"})
     end, events)
     local followList = {}
     if #followLists > 0 then followList = json.decode(followLists[#followLists].p) end
@@ -206,12 +206,12 @@ local function event(msg)
             else
                 table.insert(Events, msg)
             end
-        else if msg.Kind == "3" and msg.p
-        -- handle follow list update
-        local _events = events
-        local oldArray = {}
-        _events = utils.filter(function(event)
-                return utils.includes(event.Kind, ["3"])
+        elseif msg.Kind == "3" and msg.p then
+            -- handle follow list update
+            local _events = events
+            local oldArray = {}
+            _events = utils.filter(function(event)
+                return utils.includes(event.Kind, {"3"})
             end, _events)
             if #_events > 0 then oldArray = json.decode(_events[#_events].p) end
             local newArray = json.decode(msg.p)
@@ -232,17 +232,16 @@ local function event(msg)
                     Action = "Event",
                     Kind = "unfollow"
                 })
-            end
-        end    
+            end  
         else
             table.insert(Events, msg)
         end
-    else if utils.includes(msg.From, followList) and msg.Kind == "1" or msg.Kind == "6" then
+    elseif utils.includes(msg.From, followList) and msg.Kind == "1" or msg.Kind == "6" then
         table.insert(Events, msg)
-    else if msg.Kind == "follow" then
+    elseif msg.Kind == "follow" then
         if utils.includes(msg.From, Followers) then return end
         table.insert(Followers, msg.From)
-    else if msg.Kind == "unfollow" then
+    elseif msg.Kind == "unfollow" then
         if utils.includes(msg.From, Followers) then 
             Followers = utils.filter(function(follower)
                 return msg.From ~= follower
