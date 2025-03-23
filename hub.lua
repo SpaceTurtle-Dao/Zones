@@ -103,9 +103,6 @@ local function filter(filter, events)
     table.sort(_events, function(a, b)
         return a.Timestamp > b.Timestamp
     end)
-    if filter.limit and filter.limit < #events then
-        _events = slice(events, 1, filter.limit)
-    end
 
     if filter.ids then
         _events = utils.filter(function(event)
@@ -137,6 +134,12 @@ local function filter(filter, events)
         end, _events)
     end
 
+    if filter.search then
+        _events = utils.filter(function(event)
+            return string.find(string.lower(event.Content), string.lower(filter.search))
+        end, _events)
+    end
+
     if filter.tags then
         for key, tags in pairs(filter.tags) do
             _events = utils.filter(function(e)
@@ -147,6 +150,14 @@ local function filter(filter, events)
             end, events)
         end
     end
+
+    if filter.limit and filter.limit < #events then
+        for i = #_events, filter.limit, -1 do
+            table.remove(_events, i)
+        end
+        --_events = slice(events, 1, filter.limit)
+    end
+
     return _events
 end
 
@@ -205,7 +216,6 @@ local function event(msg)
     end
 end
 
-
 Handlers.add('FetchEvents', Handlers.utils.hasMatchingTag('Action', 'FetchEvents'), function(msg)
     fetchEvents(msg)
 end)
@@ -215,6 +225,6 @@ Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), function
     event(msg)
 end)
 
-Handlers.add('DeleteEvents', Handlers.utils.hasMatchingTag('Action', 'DeleteEvents'), function(msg)
+--[[Handlers.add('DeleteEvents', Handlers.utils.hasMatchingTag('Action', 'DeleteEvents'), function(msg)
     Events = {}
-end)
+end)]]--
