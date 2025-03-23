@@ -58,39 +58,45 @@ function slice(tbl, start_idx, end_idx)
     return new_table
 end
 
-Variant = "0.0.1"
-Token = "WPyLgOqELOyN_BoTNdeEMZp5sz3RxDL19IGcs3A9IPc" -- AO or wAR token currently set to swappy tokens for testing
-FeedCost = "1000000"
-if not EventId then EventId = 1 end
-if not Profile then Profile = {} end
-if not SubscriptionRequest then SubscriptionRequest = {} end
-if not Subscriptions then Subscriptions = {} end
-if not Subs then Subs = {} end
-if not Events then Events = {} end
-
-local function info(msg)
-    local data = {
-        Process = ao.id,
-        Token = Token,
-        Events = tostring(EventId),
-        Profile = {},
-        CreatedAt = "",
-        FeedCost = FeedCost,
-        Subs = #Subs,
-        Subscriptions = #Subscriptions
+function compareArrays(oldArray, newArray)
+    -- Convert arrays to hash tables for efficient lookup
+    local oldSet = {}
+    local newSet = {}
+    
+    -- Populate oldSet
+    for _, value in ipairs(oldArray) do
+        oldSet[value] = true
+    end
+    
+    -- Populate newSet
+    for _, value in ipairs(newArray) do
+        newSet[value] = true
+    end
+    
+    -- Find additions: elements in newArray not in oldArray
+    local additions = {}
+    for _, value in ipairs(newArray) do
+        if not oldSet[value] then
+            table.insert(additions, value)
+        end
+    end
+    
+    -- Find deletions: elements in oldArray not in newArray
+    local deletions = {}
+    for _, value in ipairs(oldArray) do
+        if not newSet[value] then
+            table.insert(deletions, value)
+        end
+    end
+    
+    return {
+        additions = additions,
+        deletions = deletions
     }
-    if Profile.Content then
-        data.Profile = json.decode(Profile.Content)
-    end
-
-    if Profile.Timestamp then
-        data.CreatedAt = Profile.Timestamp
-    end
-    ao.send({
-        Target = msg.From,
-        Data = json.encode(data)
-    })
 end
+
+Variant = "0.0.1"
+if not Events then Events = {} end
 
 local function filter(filter, events)
     local _events = events
@@ -170,45 +176,7 @@ local function fetchEvents(msg)
     })
 end
 
-local function fetchSubs(msg)
-    local page = Utils.toNumber(msg.Page)
-    local size = Utils.toNumber(msg.Size)
-    ao.send({
-        Target = msg.From,
-        Data = json.encode(fetch(Subs, page, size))
-    })
-end
-
-local function fetchSubscriptions(msg)
-    local page = Utils.toNumber(msg.Page)
-    local size = Utils.toNumber(msg.Size)
-    ao.send({
-        Target = msg.From,
-        Data = json.encode(fetch(Subscriptions, page, size))
-    })
-end
-
-local function feed(msg)
-    local isSubscription = utils.includes(msg.From, Subscriptions)
-    if isSubscription == false then return end
-    table.insert(Events, msg)
-end
-
 local function event(msg)
-    if msg.From ~= Owner and msg.From ~= ao.id then
-        feed(msg)
-        return
-    end
-    if msg.From == Owner then
-        local message = {
-            Target = ao.id,
-            Action = "Event",
-            Data = msg.Data,
-            Tags = msg.Tags
-        }
-        ao.send(message)
-        return
-    end
     if msg.Kind == "7" and msg.Content and msg.e and msg.p then
         local _event = utils.find(
             function(event) return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and
@@ -222,191 +190,33 @@ local function event(msg)
         else
             table.insert(Events, msg)
         end
-    elseif msg.From == ao.id and msg.Kind == "0" and msg.Content then
-        Events = utils.filter(function(event)
-            return event.Kind ~= "0"
-        end, Events)
-        Profile = msg
+    else if msg.Kind == "3" and msg.p
+       -- handle follow list update
+       local _events = events
+       local oldArray = {}
+       _events = utils.filter(function(event)
+            return utils.includes(event.Kind, ["3"])
+        end, _events)
+        if #_events > 0 then oldArray = json.decode(_events[#_events].p) end
+        local newArray = json.decode(msg.p)
+        local results = compareArrays(oldArray, newArray)
         table.insert(Events, msg)
-    elseif msg.From == ao.id then
-        if #Subs > 0 then
-            for k, v in ipairs(Subs) do
-                local message = {
-                    Target = v,
-                    Action = "Event",
-                    Data = msg.Data,
-                    Tags = msg.Tags
-                }
-                message["X-Id"] = msg.Id
-                ao.send(message)
-            end
-        end
+    end    
+    else
         table.insert(Events, msg)
     end
 end
 
-local function subscribe(msg)
-    assert(Owner == msg.From and msg.Relay ~= ao.id)
-    SubscriptionRequest[msg.Relay] = true
-    ao.send({
-        Target = msg.Relay,
-        Action = "SubscriptionRequest"
-    })
-end
-
-local function unsubscribe(msg)
-    assert(Owner == msg.From)
-    SubscriptionRequest[msg.Relay] = false
-    ao.send({
-        Target = msg.Relay,
-        Action = "UnSubscribed"
-    })
-end
-
-local function subscriptionRequest(msg)
-    utils.filter(function(val) return val ~= msg.From end, Subs)
-    table.insert(Subs, msg.From)
-    ao.send({
-        Target = msg.From,
-        Action = "Subscribed",
-    })
-end
-
-local function unsubscribed(msg)
-    local temp = {}
-    for k, v in ipairs(Subs) do
-        if v ~= msg.From then
-            table.insert(temp, v)
-        end
-    end
-    Subs = temp
-    ao.send({
-        Target = msg.From,
-        Action = "Subscribed",
-    })
-end
-
-local function isSubscribed(msg)
-    ao.send({
-        Target = msg.From,
-        Data = utils.includes(msg.Relay, Subscriptions),
-    })
-end
-
-local function subscribed(msg)
-    if SubscriptionRequest[msg.From] == true then
-        --add to subscription list
-        local temp = {}
-        for k, v in ipairs(Subscriptions) do
-            if v ~= msg.From then
-                table.insert(temp, v)
-            end
-        end
-        table.insert(temp, msg.From)
-        Subscriptions = temp
-    elseif SubscriptionRequest[msg.From] == false then
-        --remove from subscription list
-        local temp = {}
-        for k, v in ipairs(Subscriptions) do
-            if v ~= msg.From then
-                table.insert(temp, v)
-            end
-        end
-        Subscriptions = temp
-    end
-end
-
-
-Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(msg)
-    info(msg)
-end)
 
 Handlers.add('FetchEvents', Handlers.utils.hasMatchingTag('Action', 'FetchEvents'), function(msg)
     fetchEvents(msg)
 end)
 
-Handlers.add('Subs', Handlers.utils.hasMatchingTag('Action', 'Subs'), function(msg)
-    fetchSubs(msg)
-end)
-
-Handlers.add('Subscriptions', Handlers.utils.hasMatchingTag('Action', 'Subscriptions'), function(msg)
-    fetchSubscriptions(msg)
-end)
-
-Handlers.add('IsSubscribed', Handlers.utils.hasMatchingTag('Action', 'IsSubscribed'), function(msg)
-    isSubscribed(msg)
-end)
 
 Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), function(msg)
     event(msg)
 end)
 
-Handlers.add('SubscriptionRequest', Handlers.utils.hasMatchingTag('Action', 'SubscriptionRequest'), function(msg)
-    subscriptionRequest(msg)
+Handlers.add('DeleteEvents', Handlers.utils.hasMatchingTag('Action', 'DeleteEvents'), function(msg)
+    Events = {}
 end)
-
-Handlers.add('Subscribe', Handlers.utils.hasMatchingTag('Action', 'Subscribe'), function(msg)
-    subscribe(msg)
-end)
-Handlers.add('UnSubscribe', Handlers.utils.hasMatchingTag('Action', 'UnSubscribe'), function(msg)
-    unsubscribe(msg)
-end)
-
-Handlers.add('Subscribed', Handlers.utils.hasMatchingTag('Action', 'Subscribed'), function(msg)
-    subscribed(msg)
-end)
-
-Handlers.add('UnSubscribed', Handlers.utils.hasMatchingTag('Action', 'UnSubscribed'), function(msg)
-    unsubscribed(msg)
-end)
-
-Handlers.add('Credit-Notice', Handlers.utils.hasMatchingTag('Action', 'Credit-Notice'), function(msg)
-    if msg.From ~= Token then
-        --[[return funds and send message about unsupported token]] --
-        ao.send({
-            Target = msg.From,
-            Quantity = msg.Quantity,
-            Recipient = msg.Sender
-        })
-        return
-    end
-    if not msg["X-Type"] then
-        ao.send({
-            Target = msg.From,
-            Quantity = msg.Quantity,
-            Recipient = msg.Sender
-        })
-        return
-    end
-
-    if msg["X-Type"] == "PayedFeed" then
-        payedFeed(msg)
-        return
-    end
-    if msg["X-Type"] == "SubscriptionRequest" then
-        subscriptionRequest(msg)
-        return
-    end
-    ao.send({
-        Target = msg.From,
-        Quantity = msg.Quantity,
-        Recipient = msg.Sender
-    })
-end)
-
-Handlers.add('SetOwner', Handlers.utils.hasMatchingTag('Action', 'SetOwner'), function(msg)
-    assert(msg.From == Owner)
-    Owner = msg._Owner
-end)
-
-Handlers.add('GetOwner', Handlers.utils.hasMatchingTag('Action', 'GetOwner'), function(msg)
-    ao.send({
-        Target = msg.From,
-        Data = Owner
-    });
-end)
-
---[[ao.send({
-    Target = Owner,
-    Action = "Activate"
-});]] --

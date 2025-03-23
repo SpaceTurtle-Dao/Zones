@@ -58,6 +58,43 @@ function slice(tbl, start_idx, end_idx)
     return new_table
 end
 
+function compareArrays(oldArray, newArray)
+    -- Convert arrays to hash tables for efficient lookup
+    local oldSet = {}
+    local newSet = {}
+    
+    -- Populate oldSet
+    for _, value in ipairs(oldArray) do
+        oldSet[value] = true
+    end
+    
+    -- Populate newSet
+    for _, value in ipairs(newArray) do
+        newSet[value] = true
+    end
+    
+    -- Find additions: elements in newArray not in oldArray
+    local additions = {}
+    for _, value in ipairs(newArray) do
+        if not oldSet[value] then
+            table.insert(additions, value)
+        end
+    end
+    
+    -- Find deletions: elements in oldArray not in newArray
+    local deletions = {}
+    for _, value in ipairs(oldArray) do
+        if not newSet[value] then
+            table.insert(deletions, value)
+        end
+    end
+    
+    return {
+        additions = additions,
+        deletions = deletions
+    }
+end
+
 Variant = "0.0.1"
 if not Events then Events = {} end
 
@@ -153,6 +190,16 @@ local function event(msg)
         else
             table.insert(Events, msg)
         end
+    else if msg.Kind == "3" and msg.p
+       -- handle follow list update
+       local _events = events
+       _events = utils.filter(function(event)
+            return utils.includes(event.Kind, ["3"])
+        end, _events)
+       local newArray =  json.decode(msg.p)
+       local results = compareArrays(oldArray, newArray)
+       table.insert(Events, msg)
+    end    
     else
         table.insert(Events, msg)
     end
