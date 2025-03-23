@@ -242,11 +242,9 @@ local function event(msg)
         if utils.includes(msg.From, Followers) then return end
         table.insert(Followers, msg.From)
     elseif msg.Kind == "unfollow" then
-        if utils.includes(msg.From, Followers) then 
-            Followers = utils.filter(function(follower)
-                return msg.From ~= follower
-            end, Followers) 
-        end
+        Followers = utils.filter(function(follower)
+            return msg.From ~= follower
+        end, Followers) 
     end
 end
 
