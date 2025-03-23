@@ -97,6 +97,7 @@ end
 
 Variant = "0.0.1"
 if not Events then Events = {} end
+if not Followers then Followers = {} end
 
 local function filter(filter, events)
     local _events = events
@@ -183,6 +184,15 @@ local function event(msg)
     local followList = {}
     if #followLists > 0 then followList = json.decode(followLists[#followLists].p) end
     if msg.From == Owner then
+        for i = 1, #Followers do
+            ao.send({
+                Target = Followers[i],
+                Action = "Event",
+                Data = msg.Data,
+                Tags = msg.Tags
+            })
+        end
+        msg.From = msg.Target
         if msg.Kind == "7" and msg.Content and msg.e and msg.p then
             local _event = utils.find(
                 function(event) return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and
@@ -206,13 +216,38 @@ local function event(msg)
             if #_events > 0 then oldArray = json.decode(_events[#_events].p) end
             local newArray = json.decode(msg.p)
             local results = compareArrays(oldArray, newArray)
+            local additions = results.additions
+            local deletions = results.deletions
             table.insert(Events, msg)
+            for i = 1, #additions do
+                ao.send({
+                    Target = additions[i],
+                    Action = "Event",
+                    Kind = "follow"
+                })
+            end
+            for i = 1, #deletions do
+                ao.send({
+                    Target = deletions[i],
+                    Action = "Event",
+                    Kind = "unfollow"
+                })
+            end
         end    
         else
             table.insert(Events, msg)
         end
     else if utils.includes(msg.From, followList) and msg.Kind == "1" or msg.Kind == "6" then
         table.insert(Events, msg)
+    else if msg.Kind == "follow" then
+        if utils.includes(msg.From, Followers) then return end
+        table.insert(Followers, msg.From)
+    else if msg.Kind == "unfollow" then
+        if utils.includes(msg.From, Followers) then 
+            Followers = utils.filter(function(follower)
+                return msg.From ~= follower
+            end, _events) 
+        end
     end
 end
 
