@@ -180,7 +180,7 @@ end
 local function event(msg)
     local followLists = utils.filter(function(event)
         return utils.includes(event.Kind, {"3"})
-    end, events)
+    end, Events)
     local followList = {}
     if #followLists > 0 then followList = json.decode(followLists[#followLists].p) end
     if msg.From == Owner then
@@ -208,7 +208,7 @@ local function event(msg)
             end
         elseif msg.Kind == "3" and msg.p then
             -- handle follow list update
-            local _events = events
+            local _events = Events
             local oldArray = {}
             _events = utils.filter(function(event)
                 return utils.includes(event.Kind, {"3"})
@@ -245,7 +245,7 @@ local function event(msg)
         if utils.includes(msg.From, Followers) then 
             Followers = utils.filter(function(follower)
                 return msg.From ~= follower
-            end, _events) 
+            end, Followers) 
         end
     end
 end
