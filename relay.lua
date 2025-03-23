@@ -177,6 +177,12 @@ local function fetchEvents(msg)
 end
 
 local function event(msg)
+    local followLists = utils.filter(function(event)
+        return utils.includes(event.Kind, ["3"])
+    end, events)
+    local followList = {}
+    if #followLists > 0 then followList = json.decode(followLists[#followLists].p) end
+    if msg.From ~= Owner and utils.includes(msg.From, followList) ~= true then return end
     if msg.Kind == "7" and msg.Content and msg.e and msg.p then
         local _event = utils.find(
             function(event) return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and
