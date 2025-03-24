@@ -21,13 +21,6 @@ Hub Zones are the backbone of Velocity’s messaging system, enabling:
 - **Follower Management**: Track followers (`Kind: 2` with `+`/`-`) and notify them of owner events.
 - **Event Processing**: Support Velocity-specific events (e.g., deduplicate reactions, update follow lists).
 
-## Installation
-
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/SpaceTurtle-Dao/Hubs.git
-   cd Hubs
-
 ## Spec Structure
 Defined in `msg.Data` per `spec-zones.md`:
 - **`type`**: `"hub"` (string) - Maps to `Zone-Type: Channel`, filterable via `Kind: "hub"`.
