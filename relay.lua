@@ -165,6 +165,15 @@ local function fetch(tbl, page, size)
     return result;
 end
 
+local function getFollowLists()
+    local followLists = utils.filter(function(event)
+        return utils.includes(event.Kind, {"3"})
+    end, Events)
+    local followList = {}
+    if #followLists > 0 then followList = json.decode(followLists[#followLists].p) end
+    return followList
+end
+
 local function fetchEvents(msg)
     local filters = json.decode(msg.Filters)
     local _events = Events
@@ -178,11 +187,7 @@ local function fetchEvents(msg)
 end
 
 local function event(msg)
-    local followLists = utils.filter(function(event)
-        return utils.includes(event.Kind, {"3"})
-    end, Events)
-    local followList = {}
-    if #followLists > 0 then followList = json.decode(followLists[#followLists].p) end
+    local followList = getFollowLists()
     if msg.From == Owner then
         for i = 1, #Followers do
             ao.send({
@@ -262,4 +267,13 @@ end)
 
 Handlers.add('DeleteEvents', Handlers.utils.hasMatchingTag('Action', 'DeleteEvents'), function(msg)
     Events = {}
+end)
+
+Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(msg)
+    ao.send({
+        Target = msg.From,
+        User = Owner,
+        Followers = json.encode(Followers),
+        Following = json.encode(getFollowLists())
+    })
 end)
