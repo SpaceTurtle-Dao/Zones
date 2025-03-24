@@ -270,10 +270,16 @@ Handlers.add('DeleteEvents', Handlers.utils.hasMatchingTag('Action', 'DeleteEven
 end)
 
 Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(msg)
+    local registrySpec = {
+        type = "hub",
+        description = "Social message hub",
+        version = "0.1"
+      }
     ao.send({
         Target = msg.From,
         User = Owner,
         Followers = json.encode(Followers),
-        Following = json.encode(getFollowLists())
+        Following = json.encode(getFollowLists()),
+        Data = json.encode(registrySpec)
     })
 end)

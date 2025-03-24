@@ -72,8 +72,8 @@ Handlers.add(
 
 -- Expose the registry's own spec as a Zone
 Handlers.add(
-  "GetSpec",
-  Handlers.utils.hasMatchingTag("Action", "GetSpec"),
+  "Info",
+  Handlers.utils.hasMatchingTag("Action", "Info"),
   function (msg)
     local registrySpec = {
       type = "registry",
