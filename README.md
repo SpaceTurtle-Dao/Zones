@@ -22,4 +22,3 @@ The Registry Zone addresses the need for a decentralized directory in the AO eco
 - **Self-Registration**: Zones register using their own process ID (`msg.From`), ensuring authenticity.
 - **Updates**: Zones can update their metadata dynamically via the `Register` handler.
 - **Filtering and Paging**: The `GetZones` handler supports filtering by `Kind` (e.g., `"hub"`) and spec fields, with pagination for scalability.
-- **Zone Spec Compliance**: Metadata in `msg.Data` is visible per `spec-zones.md`, with a `GetSpec` handler for the registry’s own info.

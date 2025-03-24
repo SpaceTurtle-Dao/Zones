@@ -228,7 +228,7 @@ local function event(msg)
                 ao.send({
                     Target = additions[i],
                     Action = "Event",
-                    Kind = "4",
+                    Kind = "2",
                     Content = "+"
                 })
             end
@@ -236,7 +236,7 @@ local function event(msg)
                 ao.send({
                     Target = deletions[i],
                     Action = "Event",
-                    Kind = "4",
+                    Kind = "2",
                     Content = "-"
                 })
             end  
@@ -245,10 +245,10 @@ local function event(msg)
         end
     elseif utils.includes(msg.From, followList) and msg.Kind == "1" or msg.Kind == "6" then
         table.insert(Events, msg)
-    elseif msg.Kind == "4" and msg.Content == "+" or msg.Content == "" then
+    elseif msg.Kind == "2" and msg.Content == "+" or msg.Content == "" then
         if utils.includes(msg.From, Followers) then return end
         table.insert(Followers, msg.From)
-    elseif msg.Kind == "4" and msg.Content == "-" then
+    elseif msg.Kind == "2" and msg.Content == "-" then
         Followers = utils.filter(function(follower)
             return msg.From ~= follower
         end, Followers) 
