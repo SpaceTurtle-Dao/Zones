@@ -4,6 +4,9 @@ local json = require('json');
 local bint = require('.bint')(256)
 local utils = require(".utils")
 
+Variant = "0.0.1"
+if not Events then Events = {} end
+
 -- Utils helper functions
 Utils = {
     add = function(a, b)
@@ -20,46 +23,11 @@ Utils = {
     end
 }
 
-function Spairs(t, order)
-    -- collect the keys
-    local keys = {}
-    for k in pairs(t) do keys[#keys + 1] = k end
-
-    -- if order function given, sort by it by passing the table and keys a, b,
-    -- otherwise just sort the keys
-    if order then
-        table.sort(keys, function(a, b) return order(t, a, b) end)
-    else
-        table.sort(keys)
-    end
-
-    -- return the iterator function
-    local i = 0
-    return function()
-        i = i + 1
-        if keys[i] then
-            return keys[i], t[keys[i]]
-        end
-    end
-end
-
-local function some(arr, predicate)
-    for i = 1, #arr do
-        if predicate(arr[i]) then
-            return true
-        end
-    end
-    return false
-end
-
-function slice(tbl, start_idx, end_idx)
+local function slice(tbl, start_idx, end_idx)
     local new_table = {}
     table.move(tbl, start_idx or 1, end_idx or #tbl, 1, new_table)
     return new_table
 end
-
-Variant = "0.0.1"
-if not Events then Events = {} end
 
 local function filter(filter, events)
     local _events = events
@@ -113,20 +81,6 @@ local function filter(filter, events)
     return _events
 end
 
-local function fetch(tbl, page, size)
-    local start = (page - 1) * size + 1
-    local endPage = page * size
-    local result = {};
-    for i = start, endPage do
-        if tbl[i] then
-            table.insert(result, tbl[i])
-        else
-            break
-        end
-    end
-    return result;
-end
-
 local function fetchEvents(msg)
     local filters = json.decode(msg.Filters)
     local _events = Events
@@ -140,20 +94,10 @@ local function fetchEvents(msg)
 end
 
 local function event(msg)
-    if msg.Kind == "7" and msg.Content and msg.e and msg.p then
-        local _event = utils.find(
-            function(event) return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and
-                msg.p == event.p end,
-            Events
-        )
-        if _event then
-            Events = utils.filter(function(event)
-                return event.Id ~= _event.Id
-            end, Events)
-        else
-            table.insert(Events, msg)
-        end
-    else
+    if msg.Kind == "0" and msg.Content then
+        Events = utils.filter(function(event)
+            return msg.From ~= event.From
+        end, Events)
         table.insert(Events, msg)
     end
 end
