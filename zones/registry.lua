@@ -1,113 +1,88 @@
--- Initialize global variables
---local ao = require('ao')
-local json = require('json');
-local bint = require('.bint')(256)
-local utils = require(".utils")
+-- Registry for managing zones
+Zones = Zones or {}
 
-Variant = "0.0.1"
-if not Events then Events = {} end
-
--- Utils helper functions
-Utils = {
-    add = function(a, b)
-        return tostring(bint(a) + bint(b))
-    end,
-    subtract = function(a, b)
-        return tostring(bint(a) - bint(b))
-    end,
-    toBalanceValue = function(a)
-        return tostring(bint(a))
-    end,
-    toNumber = function(a)
-        return tonumber(a)
-    end
-}
-
-local function slice(tbl, start_idx, end_idx)
-    local new_table = {}
-    table.move(tbl, start_idx or 1, end_idx or #tbl, 1, new_table)
-    return new_table
-end
-
-local function filter(filter, events)
-    local _events = events
-    table.sort(_events, function(a, b)
-        return a.Timestamp > b.Timestamp
-    end)
-    if filter.limit and filter.limit < #events then
-        _events = slice(events, 1, filter.limit)
-    end
-
-    if filter.ids then
-        _events = utils.filter(function(event)
-            return utils.includes(event.Id, filter.ids)
-        end, _events)
-    end
-
-    if filter.authors then
-        _events = utils.filter(function(event)
-            return utils.includes(event.From, filter.authors)
-        end, _events)
-    end
-
-    if filter.kinds then
-        _events = utils.filter(function(event)
-            return utils.includes(event.Kind, filter.kinds)
-        end, _events)
-    end
-
-    if filter.since then
-        _events = utils.filter(function(event)
-            return event.Timestamp > filter.since
-        end, _events)
-    end
-
-    if filter["until"] then
-        _events = utils.filter(function(event)
-            return event.Timestamp < filter["until"]
-        end, _events)
-    end
-
-    if filter.tags then
-        for key, tags in pairs(filter.tags) do
-            _events = utils.filter(function(e)
-                if e[key] then
-                    return utils.includes(e[key], tags)
-                end
-                return false
-            end, events)
-        end
-    end
-    return _events
-end
-
-local function fetchEvents(msg)
-    local filters = json.decode(msg.Filters)
-    local _events = Events
-    for k, v in ipairs(filters) do
-        _events = filter(v, _events)
-    end
-    ao.send({
-        Target = msg.From,
-        Data = json.encode(_events)
+-- Handler for registering a zone (msg.From as Register)
+Handlers.add(
+  "Register",
+  Handlers.utils.hasMatchingTag("Register"),
+  function (msg)
+    local registeringZone = msg.From -- Zone ID is msg.From
+    local spec = msg.Data and json.decode(msg.Data) or {} -- Zone spec from Data
+    Zones[registeringZone] = {
+      spec = spec, -- e.g., { "type": "hub", "kinds": [1] }
+      registeredAt = msg.Timestamp
+    }
+    Send({
+      Target = msg.From,
+      Data = "Successfully registered zone: " .. registeringZone
     })
-end
+  end
+)
 
-local function event(msg)
-    if msg.Kind == "0" and msg.Content then
-        Events = utils.filter(function(event)
-            return msg.From ~= event.From
-        end, Events)
-        table.insert(Events, msg)
+-- Handler for querying registered zones with filtering and paging
+Handlers.add(
+  "GetZones",
+  Handlers.utils.hasMatchingTag("Action", "GetZones"),
+  function (msg)
+    local kind = msg.Tags.Kind -- Filter by zone type (e.g., "hub")
+    local filters = msg.Tags.Filters and json.decode(msg.Tags.Filters) or {}
+    local limit = tonumber(msg.Tags.Limit) or 100 -- Default page size
+    local offset = tonumber(msg.Tags.Offset) or 0 -- Start index
+
+    local zonesList = {}
+    for zoneId, zoneData in pairs(Zones) do
+      local spec = zoneData.spec
+      local matches = true
+      -- Filter by Kind (maps to spec.type)
+      if kind then
+        matches = matches and (spec.type == kind)
+      end
+      -- Filter on additional spec fields
+      if filters.spec then
+        for key, value in pairs(filters.spec) do
+          matches = matches and (spec[key] == value)
+        end
+      end
+      -- Filter on registeredAt
+      if filters.minRegisteredAt then
+        matches = matches and (tonumber(zoneData.registeredAt) >= filters.minRegisteredAt)
+      end
+      if matches then
+        table.insert(zonesList, {
+          id = zoneId,
+          spec = spec,
+          registeredAt = zoneData.registeredAt
+        })
+      end
     end
-end
 
+    -- Sort by registeredAt (newest first) and apply paging
+    table.sort(zonesList, function(a, b) return a.registeredAt > b.registeredAt end)
+    local pagedList = {}
+    for i = offset + 1, math.min(offset + limit, #zonesList) do
+      table.insert(pagedList, zonesList[i])
+    end
 
-Handlers.add('FetchEvents', Handlers.utils.hasMatchingTag('Action', 'FetchEvents'), function(msg)
-    fetchEvents(msg)
-end)
+    Send({
+      Target = msg.From,
+      Data = json.encode(pagedList)
+    })
+  end
+)
 
-
-Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), function(msg)
-    event(msg)
-end)
+-- Expose the registry's own spec as a Zone
+Handlers.add(
+  "GetSpec",
+  Handlers.utils.hasMatchingTag("Action", "GetSpec"),
+  function (msg)
+    local registrySpec = {
+      type = "registry",
+      description = "Registers and lists zones with their specs (self-registration via msg.From)",
+      version = "0.1"
+    }
+    Send({
+      Target = msg.From,
+      Data = json.encode(registrySpec)
+    })
+  end
+)
