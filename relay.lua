@@ -223,14 +223,16 @@ local function event(msg)
                 ao.send({
                     Target = additions[i],
                     Action = "Event",
-                    Kind = "follow"
+                    Kind = "4",
+                    Content = "+"
                 })
             end
             for i = 1, #deletions do
                 ao.send({
                     Target = deletions[i],
                     Action = "Event",
-                    Kind = "unfollow"
+                    Kind = "4",
+                    Content = "-"
                 })
             end  
         else
@@ -238,10 +240,10 @@ local function event(msg)
         end
     elseif utils.includes(msg.From, followList) and msg.Kind == "1" or msg.Kind == "6" then
         table.insert(Events, msg)
-    elseif msg.Kind == "follow" then
+    elseif msg.Kind == "4" and msg.Content == "+" or msg.Content == "" then
         if utils.includes(msg.From, Followers) then return end
         table.insert(Followers, msg.From)
-    elseif msg.Kind == "unfollow" then
+    elseif msg.Kind == "4" and msg.Content == "-" then
         Followers = utils.filter(function(follower)
             return msg.From ~= follower
         end, Followers) 
