@@ -2,7 +2,7 @@
 
 ## Overview
 
-`Hub.lua`, implements **Hub Zones**—decentralized nodes that host messages for the [Velocity Protocol](https://github.com/SpaceTurtle-Dao/velocity-protocol). Hub Zones are a specific type of Zone as defined in [`permaweb-libs/specs/spec-zones.md`](https://github.com/permaweb/permaweb-libs/blob/main/specs/spec-zones.md), categorized as `Zone-Type: Channel`. They provide a censorship-resistant messaging infrastructure within the AO/Arweave ecosystem, registered and discoverable via the [`registry.lua` Registry Zone](https://github.com/SpaceTurtle-Dao/Zones).
+`Hub.lua`, implements **Hub Zones**—decentralized nodes that host messages for the [Velocity Protocol](https://github.com/SpaceTurtle-Dao/velocity-protocol). Hub Zones are a specific type of Zone as defined in [`permaweb-libs/specs/spec-zones.md`](https://github.com/permaweb/permaweb-libs/blob/main/specs/spec-zones.md), categorized as `Zone-Type: Channel`. They provide a censorship-resistant messaging infrastructure within the AO/Arweave ecosystem, registered and discoverable via the [`registry.lua`](./Registry.md)[Registry Zone](https://github.com/SpaceTurtle-Dao/Zones).
 
 The core implementation, `hub.lua`, handles message storage, follower management, and event fetching per `velocity-protocol`’s specifications.
 
