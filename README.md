@@ -34,7 +34,7 @@ Velocity Protocol aims to provide a simple, resilient messaging system for the p
 
 1. **Hubs**: Decentralized AO processes (via `hub.lua`) store and serve messages (ANS-104 objects) with `Kind` tags, notifying followers of owner events.
 2. **Registries**: Registry Zones (via `registry.lua`) allow hubs to self-register with a `msg.Data` spec (e.g., `{"type": "hub", "kinds": [1, 7]}`), making them discoverable.
-3. **Clients**: Users publish messages to hubs and fetch them using `FetchEvents`, discovering hubs via registries with `Kind` filtering (e.g., `Kind: "hub"`).
+3. **Clients**: Users publish messages to hubs and fetch them using `FetchEvents`, discovering hubs via registries with `Type` filtering (e.g., `type: "hub"`).
 
 ## Setup
 

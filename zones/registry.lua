@@ -21,7 +21,7 @@ end
 
 -- Handler for querying registered zones with filtering and paging
 Handlers.add("GetZones", Handlers.utils.hasMatchingTag("Action", "GetZones"), function(msg)
-  local kind = msg.Kind                    -- Filter by zone type (e.g., "hub")
+  -- Filter by zone type (e.g., "hub")
   local filters = msg.Filters and json.decode(msg.Filters) or {}
   local limit = tonumber(msg.Limit) or 100 -- Default page size
   local offset = tonumber(msg.Offset) or 0 -- Start index
@@ -30,10 +30,6 @@ Handlers.add("GetZones", Handlers.utils.hasMatchingTag("Action", "GetZones"), fu
   for zoneId, zoneData in pairs(Zones) do
     local spec = zoneData.spec
     local matches = true
-    -- Filter by Kind (maps to spec.type)
-    if kind then
-      matches = matches and (spec.type == kind)
-    end
     -- Filter on additional spec fields
     if filters.spec then
       for key, value in pairs(filters.spec) do
