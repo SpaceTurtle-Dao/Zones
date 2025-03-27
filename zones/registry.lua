@@ -24,7 +24,7 @@ Handlers.add("GetZones", Handlers.utils.hasMatchingTag("Action", "GetZones"), fu
   -- Filter by zone type (e.g., "hub")
   local filters = msg.Filters and json.decode(msg.Filters) or {}
   local limit = tonumber(msg.Limit) or 100 -- Default page size
-  local offset = tonumber(msg.Offset) or 0 -- Start index
+  local page = tonumber(msg.Page) or 0 -- Start index
 
   local zonesList = {}
   for zoneId, zoneData in pairs(Zones) do
@@ -52,7 +52,7 @@ Handlers.add("GetZones", Handlers.utils.hasMatchingTag("Action", "GetZones"), fu
   -- Sort by registeredAt (newest first) and apply paging
   table.sort(zonesList, function(a, b) return a.registeredAt > b.registeredAt end)
   local pagedList = {}
-  for i = offset + 1, math.min(offset + limit, #zonesList) do
+  for i = page + 1, math.min(page + limit, #zonesList) do
     table.insert(pagedList, zonesList[i])
   end
 
