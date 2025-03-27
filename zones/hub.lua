@@ -291,6 +291,6 @@ end)
 
 ao.send({
     Target = RegistryProcess,
-    Event = "Register",
+    Action = "Register",
     Data = json.encode(spec)
 })
