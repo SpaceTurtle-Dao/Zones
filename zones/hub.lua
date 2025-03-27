@@ -62,17 +62,17 @@ function compareArrays(oldArray, newArray)
     -- Convert arrays to hash tables for efficient lookup
     local oldSet = {}
     local newSet = {}
-    
+
     -- Populate oldSet
     for _, value in ipairs(oldArray) do
         oldSet[value] = true
     end
-    
+
     -- Populate newSet
     for _, value in ipairs(newArray) do
         newSet[value] = true
     end
-    
+
     -- Find additions: elements in newArray not in oldArray
     local additions = {}
     for _, value in ipairs(newArray) do
@@ -80,7 +80,7 @@ function compareArrays(oldArray, newArray)
             table.insert(additions, value)
         end
     end
-    
+
     -- Find deletions: elements in oldArray not in newArray
     local deletions = {}
     for _, value in ipairs(oldArray) do
@@ -88,7 +88,7 @@ function compareArrays(oldArray, newArray)
             table.insert(deletions, value)
         end
     end
-    
+
     return {
         additions = additions,
         deletions = deletions
@@ -96,6 +96,14 @@ function compareArrays(oldArray, newArray)
 end
 
 Variant = "0.0.1"
+RegistryProcess = ""
+
+local spec = {
+    type = "hub",
+    description = "Social message hub",
+    version = "0.1"
+}
+
 if not Events then Events = {} end
 if not Followers then Followers = {} end
 
@@ -167,7 +175,7 @@ end
 
 local function getFollowLists()
     local followLists = utils.filter(function(event)
-        return utils.includes(event.Kind, {"3"})
+        return utils.includes(event.Kind, { "3" })
     end, Events)
     local followList = {}
     if #followLists > 0 then followList = json.decode(followLists[#followLists].p) end
@@ -200,8 +208,10 @@ local function event(msg)
         msg.From = msg.Target
         if msg.Kind == "7" and msg.Content and msg.e and msg.p then
             local _event = utils.find(
-                function(event) return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and
-                    msg.p == event.p end,
+                function(event)
+                    return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and
+                        msg.p == event.p
+                end,
                 Events
             )
             if _event then
@@ -216,7 +226,7 @@ local function event(msg)
             local _events = Events
             local oldArray = {}
             _events = utils.filter(function(event)
-                return utils.includes(event.Kind, {"3"})
+                return utils.includes(event.Kind, { "3" })
             end, _events)
             if #_events > 0 then oldArray = json.decode(_events[#_events].p) end
             local newArray = json.decode(msg.p)
@@ -239,7 +249,7 @@ local function event(msg)
                     Kind = "2",
                     Content = "-"
                 })
-            end  
+            end
         else
             table.insert(Events, msg)
         end
@@ -251,7 +261,7 @@ local function event(msg)
     elseif msg.Kind == "2" and msg.Content == "-" then
         Followers = utils.filter(function(follower)
             return msg.From ~= follower
-        end, Followers) 
+        end, Followers)
     end
 end
 
@@ -270,16 +280,17 @@ Handlers.add('DeleteEvents', Handlers.utils.hasMatchingTag('Action', 'DeleteEven
 end)
 
 Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(msg)
-    local registrySpec = {
-        type = "hub",
-        description = "Social message hub",
-        version = "0.1"
-      }
     ao.send({
         Target = msg.From,
         User = Owner,
         Followers = json.encode(Followers),
         Following = json.encode(getFollowLists()),
-        Data = json.encode(registrySpec)
+        Data = json.encode(spec)
     })
 end)
+
+ao.send({
+    Target = RegistryProcess,
+    Event = "Register",
+    Data = json.encode(spec)
+})

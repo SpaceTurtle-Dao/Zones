@@ -9,8 +9,8 @@ This repository contains:
 - **Documentation**: This README and related guides for implementing Velocity.
 
 Velocity integrates with the Zone framework from [`permaweb-libs/specs/spec-zones.md`](https://github.com/permaweb/permaweb-libs/blob/main/specs/spec-zones.md), using:
-- **[Registry Zones](https://github.com/SpaceTurtle-Dao/Zones/tree/development)**: Manage and discover hubs via `registry.lua`.
-- **[Hub Zones](https://github.com/SpaceTurtle-Dao/Hubs/tree/development)**: Host messages via `hub.lua`.
+- **[Registry Zones](./zones/registry.lua)**: Manage and discover hubs via `registry.lua`.
+- **[Hub Zones](./zones/hub.lua)**: Host messages via `hub.lua`.
 
 ## Purpose
 
@@ -39,13 +39,24 @@ Velocity Protocol aims to provide a simple, resilient messaging system for the p
 ### Prerequisites
 - **AO Environment**: Install AOS or a similar AO client to deploy processes.
 - **Repositories**:
-  - Clone [`Zones`](https://github.com/SpaceTurtle-Dao/Zones/tree/development) for `registry.lua`.
+  - Clone [`Zones`](https://github.com/SpaceTurtle-Dao/Zonest) for `registry.lua`.
   - Clone [`Hubs`](https://github.com/SpaceTurtle-Dao/Hubs/tree/development) for `hub.lua`.
 
 ### Installation
 
-1. **Deploy Registry Zone**:
+1. **Clone Repo**:
    ```bash
-   git clone --branch development https://github.com/SpaceTurtle-Dao/Zones.git
+   git clone https://github.com/SpaceTurtle-Dao/Zones.git
+   ```
+
+2. **Deploy Registry Zone**:
+   ```bash
    cd Zones
    aos --load registry.lua
+   ```
+
+3. **Deploy Hub Zone**:
+   ```bash
+   cd Zones
+   aos --load hub.lua
+   ```
