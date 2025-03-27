@@ -1,60 +1,62 @@
-# Starter Kit for *AO* Application Development with *Teal*
+# Velocity Protocol - Censorship-Resistant Messaging on AO/Arweave
 
-This starter kit includes tooling that allows application developers on *AO* to use *Teal* - ***Lua* with strong typing**.
+## Overview
 
-It allows for a workflow similar to that in web development with *Typescript*, while catering to the requirements of *AO* (to have a single `.lua` output file to be loaded into an *AO* process)
+Welcome to `SpaceTurtle-Dao/velocity-protocol`, the home of the **Velocity Protocol**—a lightweight, open protocol for creating a censorship-resistant global messaging and operational network within the AO/Arweave ecosystem. Built by SpaceTurtle-DAO, Velocity leverages decentralized **Hub Zones** to host messages and **Registry Zones** to enable their discovery, combining cryptographic security with modular design.
 
-## How to Use
+This repository contains:
+- **VIPs (Velocity Improvement Proposals)**: Specifications for the protocol’s message types, filtering, and extensions (e.g., `vips/01.md` for basic flow).
+- **Documentation**: This README and related guides for implementing Velocity.
 
-1. `luarocks install tl && luarocks install cyan` 
-2. Write your code in *Teal* (using `.tl` files)
-3. Add your modules into the Squishy file (used to generate the final amalgamation)
-4. Use `npm run build` to create your `main.lua` output
+Velocity integrates with the Zone framework from [`permaweb-libs/specs/spec-zones.md`](https://github.com/permaweb/permaweb-libs/blob/main/specs/spec-zones.md), using:
+- **[Registry Zones](./zones/registry.lua)**: Manage and discover hubs via `registry.lua`.
+- **[Hub Zones](./zones/hub.lua)**: Host messages via `hub.lua`.
 
+## Purpose
 
+Velocity Protocol aims to provide a simple, resilient messaging system for the permaweb, addressing key needs:
+- **Censorship Resistance**: No central server reliance, using decentralized hubs secured by cryptographic signatures.
+- **Global Accessibility**: Hubs register with registries, enabling clients to find and connect to them worldwide.
+- **Operational Flexibility**: Supports social messaging (e.g., text notes, reactions) and workflows, extensible via VIPs.
+- **Interoperability**: Aligns with AO’s process model and Arweave’s permanent storage.
+
+## Features
+
+- **Lightweight Design**: Optimized for AO’s environment, avoiding heavy P2P overhead.
+- **Cryptographic Security**: Messages are signed with public-key cryptography for authenticity and tamper-proofing.
+- **Flexible Messaging**: Defines `Kind` tags (e.g., `1` for text notes, `7` for reactions) per VIP-01.
+- **Decentralized Ecosystem**: Hubs host messages, registries enable discovery, all as AO processes.
+- **Extensibility**: VIPs allow community-driven enhancements (e.g., media attachments, reactions).
 
 ## How It Works
 
-[Teal](https://github.com/teal-language/tl) is a superset of *Lua* that allows for typed programming in *Lua*.
+1. **Hubs**: Decentralized AO processes (via `hub.lua`) store and serve messages (ANS-104 objects) with `Kind` tags, notifying followers of owner events.
+2. **Registries**: Registry Zones (via `registry.lua`) allow hubs to self-register with a `msg.Data` spec (e.g., `{"type": "hub", "kinds": [1, 7]}`), making them discoverable.
+3. **Clients**: Users publish messages to hubs and fetch them using `FetchEvents`, discovering hubs via registries with `Kind` filtering (e.g., `Kind: "hub"`).
 
-*Teal* relates to *Lua* as *Typescript* relates to *Javascript*.
+## Setup
 
-[Cyan](https://github.com/teal-language/cyan) is the official build tool for teal.
+### Prerequisites
+- **AO Environment**: Install AOS or a similar AO client to deploy processes.
+- **Repositories**:
+  - Clone [`Zones`](https://github.com/SpaceTurtle-Dao/Zonest) for `registry.lua`.
+  - Clone [`Hubs`](https://github.com/SpaceTurtle-Dao/Hubs/tree/development) for `hub.lua`.
 
-[Squish](https://github.com/LuaDist/squish) is a tool that allows for the amalgamation of multiple *Lua* files into a single *Lua* file.
+### Installation
 
-This project seeks to provide a workflow similar to that in web development with *Typescript*, while catering to the requirements of *AO* (to have a single `.lua` output file to be loaded into an *AO* process via AOform/Aoconnect)
+1. **Clone Repo**:
+   ```bash
+   git clone https://github.com/SpaceTurtle-Dao/Zones.git
+   ```
 
-## AO-native modules and state
+2. **Deploy Registry Zone**:
+   ```bash
+   cd Zones
+   aos --load registry.lua
+   ```
 
-Two aspects about AO need to be considered:
-
-1. Native modules like "ao", "json" ...
-2. Native global state like `ao`, `Handlers`, ... 
-
-This project includes an ao type definition for ao globals.
-
-### Adding more type definitions
-
-It's possible to include type definitions for external packages, similar to the type definitions in *Typescript*.
-
-See the [*Teal* docs](https://github.com/teal-language/tl?tab=readme-ov-file) for more information.
-
-Many packages already have existing type definitions: See the [Teal-types](https://github.com/teal-language/teal-types/) repo for more information.
-
-You can grab a type defintion from there and place it into src/<your project>/typedefs
-
-For developer convenience this starter kit **includes ao-native global state type definitions**. See `src/ao.d.tl` for details.
-
-### Using you own Lua modules
-If you wish to use packages/modules that are not natively typed you can place the lua file alongside a teal type defintion inside packages/<package name>/
-
-You can then require them inside your teal project as usual via `require("yourmodule.yourfile")`. Teal will use the type definition for checks while copying the actual lua file during the build process.
-
-To prevent Cyan from pruning these packages, add them into tlconfig.lua under the dont_prune section. Otherwise Cyan will warn about foreign files in the build dir and even prune/delete them if ran with the --prune flag.
-
-### Amalgamations
-For easier development we use squishy to produce a single output file in lua. Add your modules into the squishy file to configure this (optional).
-
-### Batteries included
-This project includes a [Teal bint](https://github.com/AutonomousResearch/teal-bint) implementation with typing support and increased type safety for big integer math and also a teal native implementation of the ao utils.
+3. **Deploy Hub Zone**:
+   ```bash
+   cd Zones
+   aos --load hub.lua
+   ```
