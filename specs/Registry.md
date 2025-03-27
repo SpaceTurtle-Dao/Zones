@@ -38,3 +38,22 @@ Defined in `msg.Data` per `spec-zones.md`:
   "version": "0.1",
   "parent": "reg0"
 }
+```
+
+### GetZones
+```json
+{
+  "process": "dVL1cJFikqBQRbtHQiOxwto774TilKtrymfcaQO8HGQ",
+  "data": "",
+  "tags": [
+    {
+      "name": "Action",
+      "value": "GetZones"
+    },
+    {
+      "name": "Filters",
+      "value": "{\n\"spec\":{\n\"type\":\"hub\"\n}\n}"
+    }
+  ]
+}
+```
