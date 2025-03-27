@@ -4,6 +4,18 @@ local json = require('json');
 local bint = require('.bint')(256)
 local utils = require(".utils")
 
+Variant = "0.0.1"
+RegistryProcess = "dVL1cJFikqBQRbtHQiOxwto774TilKtrymfcaQO8HGQ"
+
+local spec = {
+    type = "hub",
+    description = "Social message hub",
+    version = "0.1"
+}
+
+if not Events then Events = {} end
+if not Followers then Followers = {} end
+
 -- Utils helper functions
 Utils = {
     add = function(a, b)
@@ -94,18 +106,6 @@ function compareArrays(oldArray, newArray)
         deletions = deletions
     }
 end
-
-Variant = "0.0.1"
-RegistryProcess = ""
-
-local spec = {
-    type = "hub",
-    description = "Social message hub",
-    version = "0.1"
-}
-
-if not Events then Events = {} end
-if not Followers then Followers = {} end
 
 local function filter(filter, events)
     local _events = events
