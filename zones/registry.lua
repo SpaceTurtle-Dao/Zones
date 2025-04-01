@@ -42,7 +42,7 @@ Handlers.add("GetZones", Handlers.utils.hasMatchingTag("Action", "GetZones"), fu
     end
     if matches then
       table.insert(zonesList, {
-        id = zoneId,
+        owner = zoneId,
         spec = spec,
         registeredAt = zoneData.registeredAt
       })
@@ -72,7 +72,7 @@ end)
 Handlers.add("GetZoneById", Handlers.utils.hasMatchingTag("Action", "GetZoneById"), function(msg)
   local zoneData = Zones[msg.ZoneId]
   local data = {
-    id = msg.ZoneId,
+    owner = msg.ZoneId,
     spec = zoneData.spec,
     registeredAt = zoneData.registeredAt
   }
