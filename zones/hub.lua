@@ -146,6 +146,12 @@ local function filter(filter, events)
         end, _events)
     end
 
+    if filter.search then
+        _events = utils.filter(function(event)
+            return string.find(string.lower(event.Content), string.lower(filter.search))
+        end, _events)
+    end
+
     if filter.tags then
         for key, tags in pairs(filter.tags) do
             _events = utils.filter(function(e)
@@ -276,7 +282,9 @@ Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), function
 end)
 
 Handlers.add('DeleteEvents', Handlers.utils.hasMatchingTag('Action', 'DeleteEvents'), function(msg)
-    Events = {}
+    if msg.From == Owner then
+        Events = {}
+    end
 end)
 
 Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(msg)
