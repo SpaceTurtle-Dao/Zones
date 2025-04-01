@@ -68,6 +68,15 @@ Handlers.add("GetZones", Handlers.utils.hasMatchingTag("Action", "GetZones"), fu
   })
 end)
 
+-- Handler for querying registered zones with filtering and paging
+Handlers.add("GetZoneById", Handlers.utils.hasMatchingTag("Action", "GetZoneById"), function(msg)
+  local zone = Zones[msg.zoneId]
+  ao.send({
+    Target = msg.From,
+    Data = json.encode(zone)
+  })
+end)
+
 -- Expose the registry's own spec as a Zone
 Handlers.add(
   "Info",
