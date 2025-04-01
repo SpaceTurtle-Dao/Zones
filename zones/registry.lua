@@ -27,7 +27,7 @@ Handlers.add("GetZones", Handlers.utils.hasMatchingTag("Action", "GetZones"), fu
   local page = tonumber(msg.Page) or 0     -- Start index
 
   local zonesList = {}
-  for zoneId, zoneData in pairs(Zones) do
+  for owner, zoneData in pairs(Zones) do
     local spec = zoneData.spec
     local matches = true
     -- Filter on additional spec fields
@@ -42,7 +42,7 @@ Handlers.add("GetZones", Handlers.utils.hasMatchingTag("Action", "GetZones"), fu
     end
     if matches then
       table.insert(zonesList, {
-        owner = zoneId,
+        owner = owner,
         spec = spec,
         registeredAt = zoneData.registeredAt
       })
