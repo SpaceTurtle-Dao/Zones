@@ -70,7 +70,7 @@ end)
 
 -- Handler for querying registered zones with filtering and paging
 Handlers.add("GetZoneById", Handlers.utils.hasMatchingTag("Action", "GetZoneById"), function(msg)
-  local zone = Zones[msg.zoneId]
+  local zone = Zones[msg.ZoneId]
   ao.send({
     Target = msg.From,
     Data = json.encode(zone)
