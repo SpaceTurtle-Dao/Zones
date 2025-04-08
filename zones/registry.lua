@@ -89,8 +89,9 @@ Handlers.add(
   function(msg)
     local registrySpec = {
       type = "registry",
-      description = "Registers and lists zones with their specs (self-registration via msg.From)",
-      version = "0.1"
+      description = "Registers lists zones with their specs",
+      version = "0.1",
+      zones = #Zones
     }
     ao.send({
       Target = msg.From,
