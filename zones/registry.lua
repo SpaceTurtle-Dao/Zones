@@ -51,7 +51,7 @@ Handlers.add("GetZones", Handlers.utils.hasMatchingTag("Action", "GetZones"), fu
 
   if filters.search then
     zonesList = utils.filter(function(event)
-      return string.find(string.lower(event.Content), string.lower(filters.search))
+      return string.find(string.lower(json.encode(event.spec)), string.lower(filters.search))
     end, zonesList)
   end
 
