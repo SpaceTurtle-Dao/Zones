@@ -240,18 +240,18 @@ local function event(msg)
             local additions = results.additions
             local deletions = results.deletions
             table.insert(Events, msg)
-            for i = 1, #additions do
+            for i, v in ipairs(additions) do
                 ao.send({
-                    Target = additions[i],
-                    Action = "Event",
+                    Target = v,
+                    Action = "Follow",
                     Kind = "2",
                     Content = "+"
                 })
             end
-            for i = 1, #deletions do
+            for i, v in ipairs(deletions) do
                 ao.send({
-                    Target = deletions[i],
-                    Action = "Event",
+                    Target = v,
+                    Action = "Follow",
                     Kind = "2",
                     Content = "-"
                 })
@@ -261,13 +261,6 @@ local function event(msg)
         end
     elseif utils.includes(msg.From, followList) and msg.Kind == "1" or msg.Kind == "6" then
         table.insert(Events, msg)
-    elseif msg.Kind == "2" and msg.Content == "+" or msg.Content == "" then
-        if utils.includes(msg.From, Followers) then return end
-        table.insert(Followers, msg.From)
-    elseif msg.Kind == "2" and msg.Content == "-" then
-        Followers = utils.filter(function(follower)
-            return msg.From ~= follower
-        end, Followers)
     end
 end
 
@@ -279,6 +272,17 @@ end)
 
 Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), function(msg)
     event(msg)
+end)
+
+Handlers.add('Follow', Handlers.utils.hasMatchingTag('Action', 'Follow'), function(msg)
+    if msg.Kind == "2" and (msg.Content == "+" or msg.Content == "") then
+        if utils.includes(msg.From, Followers) then return end
+        table.insert(Followers, msg.From)
+    elseif msg.Kind == "2" and msg.Content == "-" then
+        Followers = utils.filter(function(follower)
+            return msg.From ~= follower
+        end, Followers)
+    end
 end)
 
 Handlers.add('DeleteEvents', Handlers.utils.hasMatchingTag('Action', 'DeleteEvents'), function(msg)
@@ -298,3 +302,5 @@ Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(m
         })
     })
 end)
+
+table.insert(ao.authorities,"fcoN_xJeisVsPXA-trzVAuIiqO3ydLQxM-L4XbrQKzY")
