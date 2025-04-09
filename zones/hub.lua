@@ -146,6 +146,12 @@ local function filter(filter, events)
         end, _events)
     end
 
+    if filter.search then
+        _events = utils.filter(function(event)
+            return string.find(string.lower(event.Content), string.lower(filter.search))
+        end, _events)
+    end
+
     if filter.tags then
         for key, tags in pairs(filter.tags) do
             _events = utils.filter(function(e)
@@ -234,18 +240,18 @@ local function event(msg)
             local additions = results.additions
             local deletions = results.deletions
             table.insert(Events, msg)
-            for i = 1, #additions do
+            for i, v in ipairs(additions) do
                 ao.send({
-                    Target = additions[i],
-                    Action = "Event",
+                    Target = v,
+                    Action = "Follow",
                     Kind = "2",
                     Content = "+"
                 })
             end
-            for i = 1, #deletions do
+            for i, v in ipairs(deletions) do
                 ao.send({
-                    Target = deletions[i],
-                    Action = "Event",
+                    Target = v,
+                    Action = "Follow",
                     Kind = "2",
                     Content = "-"
                 })
@@ -255,13 +261,6 @@ local function event(msg)
         end
     elseif utils.includes(msg.From, followList) and msg.Kind == "1" or msg.Kind == "6" then
         table.insert(Events, msg)
-    elseif msg.Kind == "2" and msg.Content == "+" or msg.Content == "" then
-        if utils.includes(msg.From, Followers) then return end
-        table.insert(Followers, msg.From)
-    elseif msg.Kind == "2" and msg.Content == "-" then
-        Followers = utils.filter(function(follower)
-            return msg.From ~= follower
-        end, Followers)
     end
 end
 
@@ -275,22 +274,33 @@ Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), function
     event(msg)
 end)
 
+Handlers.add('Follow', Handlers.utils.hasMatchingTag('Action', 'Follow'), function(msg)
+    if msg.Kind == "2" and (msg.Content == "+" or msg.Content == "") then
+        if utils.includes(msg.From, Followers) then return end
+        table.insert(Followers, msg.From)
+    elseif msg.Kind == "2" and msg.Content == "-" then
+        Followers = utils.filter(function(follower)
+            return msg.From ~= follower
+        end, Followers)
+    end
+end)
+
 Handlers.add('DeleteEvents', Handlers.utils.hasMatchingTag('Action', 'DeleteEvents'), function(msg)
-    Events = {}
+    if msg.From == Owner then
+        Events = {}
+    end
 end)
 
 Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(msg)
     ao.send({
         Target = msg.From,
-        User = Owner,
-        Followers = json.encode(Followers),
-        Following = json.encode(getFollowLists()),
-        Data = json.encode(spec)
+        Data = json.encode({
+            User = Owner,
+            spec = spec,
+            Followers = json.encode(Followers),
+            Following = json.encode(getFollowLists())
+        })
     })
 end)
 
-ao.send({
-    Target = RegistryProcess,
-    Action = "Register",
-    Data = json.encode(spec)
-})
+table.insert(ao.authorities,"fcoN_xJeisVsPXA-trzVAuIiqO3ydLQxM-L4XbrQKzY")

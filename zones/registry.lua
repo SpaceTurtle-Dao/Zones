@@ -6,10 +6,10 @@ Zones = Zones or {}
 
 -- Handler for registering a zone (msg.From as Register)
 Handlers.add("Register", Handlers.utils.hasMatchingTag("Action", "Register"), function(msg)
-  local registeringZone = msg.From                        -- Zone ID is msg.From
-  local spec = msg.Data and json.decode(msg.Data) or {}   -- Zone spec from Data
+  local registeringZone = msg.From                      -- Zone ID is msg.From
+  local spec = msg.Data and json.decode(msg.Data) or {} -- Zone spec from Data
   Zones[registeringZone] = {
-    spec = spec,                                          -- e.g., { "type": "hub", "kinds": [1] }
+    spec = spec,                                        -- e.g., { "type": "hub", "kinds": [1] }
     registeredAt = msg.Timestamp
   }
   ao.send({
@@ -24,10 +24,10 @@ Handlers.add("GetZones", Handlers.utils.hasMatchingTag("Action", "GetZones"), fu
   -- Filter by zone type (e.g., "hub")
   local filters = msg.Filters and json.decode(msg.Filters) or {}
   local limit = tonumber(msg.Limit) or 100 -- Default page size
-  local page = tonumber(msg.Page) or 0 -- Start index
+  local page = tonumber(msg.Page) or 0     -- Start index
 
   local zonesList = {}
-  for zoneId, zoneData in pairs(Zones) do
+  for owner, zoneData in pairs(Zones) do
     local spec = zoneData.spec
     local matches = true
     -- Filter on additional spec fields
@@ -42,11 +42,17 @@ Handlers.add("GetZones", Handlers.utils.hasMatchingTag("Action", "GetZones"), fu
     end
     if matches then
       table.insert(zonesList, {
-        id = zoneId,
+        owner = owner,
         spec = spec,
         registeredAt = zoneData.registeredAt
       })
     end
+  end
+
+  if filters.search then
+    zonesList = utils.filter(function(event)
+      return string.find(string.lower(json.encode(event.spec)), string.lower(filters.search))
+    end, zonesList)
   end
 
   -- Sort by registeredAt (newest first) and apply paging
@@ -62,6 +68,20 @@ Handlers.add("GetZones", Handlers.utils.hasMatchingTag("Action", "GetZones"), fu
   })
 end)
 
+-- Handler for querying registered zones with filtering and paging
+Handlers.add("GetZoneById", Handlers.utils.hasMatchingTag("Action", "GetZoneById"), function(msg)
+  local zoneData = Zones[msg.ZoneId]
+  local data = {
+    owner = msg.ZoneId,
+    spec = zoneData.spec,
+    registeredAt = zoneData.registeredAt
+  }
+  ao.send({
+    Target = msg.From,
+    Data = json.encode(data)
+  })
+end)
+
 -- Expose the registry's own spec as a Zone
 Handlers.add(
   "Info",
@@ -69,8 +89,9 @@ Handlers.add(
   function(msg)
     local registrySpec = {
       type = "registry",
-      description = "Registers and lists zones with their specs (self-registration via msg.From)",
-      version = "0.1"
+      description = "Registers lists zones with their specs",
+      version = "0.1",
+      zones = #Zones
     }
     ao.send({
       Target = msg.From,
