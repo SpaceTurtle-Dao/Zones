@@ -25,6 +25,13 @@ State = {
     }
 }
 
+-- Slice helper for pagination
+function slice(tbl, start_idx, end_idx)
+    local new_table = {}
+    table.move(tbl, start_idx or 1, end_idx or #tbl, 1, new_table)
+    return new_table
+end
+
 -- Helpers
 local function getTag(tags, key)
     for _, tag in ipairs(tags or {}) do
@@ -96,12 +103,97 @@ local function routeInternal(msg)
     end
 end
 
--- Main Protocol Handler
+-- Filtering logic for client queries
+local function filter(filter, events)
+    local _events = events
+
+    -- Early filtering
+    if filter.ids then
+        _events = utils.filter(function(e)
+            return utils.includes(e.Id, filter.ids)
+        end, _events)
+    end
+
+    if filter.authors then
+        _events = utils.filter(function(e)
+            return utils.includes(e.From, filter.authors)
+        end, _events)
+    end
+
+    if filter.kinds then
+        _events = utils.filter(function(e)
+            return utils.includes(e.Kind, filter.kinds)
+        end, _events)
+    end
+
+    if filter.since then
+        _events = utils.filter(function(e)
+            return e.Timestamp > filter.since
+        end, _events)
+    end
+
+    if filter["until"] then
+        _events = utils.filter(function(e)
+            return e.Timestamp < filter["until"]
+        end, _events)
+    end
+
+    if filter.tags then
+        for tagKey, expectedValues in pairs(filter.tags) do
+            _events = utils.filter(function(e)
+                for _, tag in ipairs(e.Tags or {}) do
+                    if tag[1] == tagKey and utils.includes(tag[2], expectedValues) then
+                        return true
+                    end
+                end
+                return false
+            end, _events)
+        end
+    end
+
+    -- Refactored: restrict search to tags in kind:1000 only
+    if filter.search then
+        _events = utils.filter(function(e)
+            if e.Kind ~= Kinds.GOSSIP then return false end
+            for _, tag in ipairs(e.Tags or {}) do
+                if string.find(string.lower(tag[2] or ""), string.lower(filter.search)) then
+                    return true
+                end
+            end
+            return false
+        end, _events)
+    end
+
+    table.sort(_events, function(a, b) return a.Timestamp > b.Timestamp end)
+
+    local limit = math.min(filter.limit or 50, 500)
+    if #_events > limit then
+        _events = slice(_events, 1, limit)
+    end
+
+    return _events
+end
+
+-- FetchEvents handler
+local function fetchEvents(msg)
+    local filters = json.decode(msg.Filters or "[]")
+    local result = State.Events
+
+    for _, f in ipairs(filters) do
+        result = filter(f, result)
+    end
+
+    ao.send({
+        Target = msg.From,
+        Data = json.encode(result)
+    })
+end
+
+-- Main Event Handler
 function event(msg)
     local myFollowList = getFollowList(State.Events, State.Owner)
     local isFollowing = utils.includes(msg.From, myFollowList)
 
-    -- Always accept Kind 3 if this hub is explicitly listed
     if msg.Kind == Kinds.FOLLOW then
         for _, tag in ipairs(msg.Tags or {}) do
             if tag[1] == "p" and tag[2] == State.Owner then
@@ -112,14 +204,12 @@ function event(msg)
         return
     end
 
-    -- Messages from this hub (self)
     if msg.From == State.Owner then
         broadcastToFollowers(msg)
         routeInternal(msg)
         return
     end
 
-    -- Accept these kinds from followed hubs
     local allowedKinds = {
         [Kinds.NOTE] = true,
         [Kinds.WRAPPED_SEAL] = true,
@@ -128,18 +218,28 @@ function event(msg)
     }
 
     if isFollowing and allowedKinds[msg.Kind] then
+        local shouldGossip = msg.Kind ~= Kinds.GOSSIP
+            and msg.Signature
+            and not hasSeenReference(msg.Signature)
+
         table.insert(State.Events, msg)
 
-        -- Gossip if it's NOT a gossip message and hasn't been seen
-        if msg.Kind ~= Kinds.GOSSIP and msg.Signature and not hasSeenReference(msg.Signature) then
+        if shouldGossip then
+            local gossipTags = {
+                { "hub", "true" },
+                { "received-from", msg.From },
+                { "reference-signature", msg.Signature },
+                { "referenced-kind", msg.Kind },
+                { "Kind", Kinds.GOSSIP }
+            }
+
+            for _, tag in ipairs(msg.Tags or {}) do
+                table.insert(gossipTags, tag)
+            end
+
             local gossipMsg = {
                 Kind = Kinds.GOSSIP,
-                Tags = {
-                    { "hub", "true" },
-                    { "received-from", msg.From },
-                    { "reference-signature", msg.Signature },
-                    { "referenced-kind", msg.Kind }
-                },
+                Tags = gossipTags,
                 Data = "Gossip propagation for kind " .. msg.Kind
             }
 
@@ -158,12 +258,10 @@ function event(msg)
     end
 end
 
--- Handlers
+-- Register Handlers
 Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), event)
 
-Handlers.add('DeleteEvents', Handlers.utils.hasMatchingTag('Action', 'DeleteEvents'), function(msg)
-    if msg.From == State.Owner then State.Events = {} end
-end)
+Handlers.add('FetchEvents', Handlers.utils.hasMatchingTag('Action', 'FetchEvents'), fetchEvents)
 
 Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(msg)
     ao.send({
@@ -176,6 +274,7 @@ Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(m
         })
     })
 end)
+
 
 table.insert(ao.authorities,"5btmdnmjWiFugymH7BepSig8cq1_zE-EQVumcXn0i_4")
 
