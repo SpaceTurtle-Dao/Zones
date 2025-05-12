@@ -178,3 +178,78 @@ Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(m
 end)
 
 table.insert(ao.authorities,"5btmdnmjWiFugymH7BepSig8cq1_zE-EQVumcXn0i_4")
+
+function simulateGossipTest()
+    print("\\n--- Running Gossip Simulation ---")
+
+    State.Owner = "HubA"
+    State.Events = {}
+
+    -- Hub A follows Hub B
+    table.insert(State.Events, {
+        Kind = Kinds.FOLLOW,
+        From = "HubA",
+        Tags = {
+            { "p", "HubB" }
+        }
+    })
+
+    -- Hub C follows Hub A
+    table.insert(State.Events, {
+        Kind = Kinds.FOLLOW,
+        From = "HubC",
+        Tags = {
+            { "p", "HubA" }
+        }
+    })
+
+    -- Hub B sends a NOTE (should be accepted + gossiped to HubC)
+    event({
+        Kind = Kinds.NOTE,
+        From = "HubB",
+        Signature = "sig001",
+        Tags = {},
+        Data = "Note from Hub B"
+    })
+
+    -- Hub D sends a NOTE (should be ignored)
+    event({
+        Kind = Kinds.NOTE,
+        From = "HubD",
+        Signature = "sig002",
+        Tags = {},
+        Data = "Sneaky message from Hub D"
+    })
+
+    -- Hub B sends a GOSSIP (should be accepted but not gossiped again)
+    event({
+        Kind = Kinds.GOSSIP,
+        From = "HubB",
+        Signature = "sig003",
+        Tags = {
+            { "hub", "true" },
+            { "received-from", "HubZ" },
+            { "reference-signature", "sig999" },
+            { "referenced-kind", "0" }
+        },
+        Data = "Hub B gossip"
+    })
+
+    -- Hub C sends a NOTE (should be ignored)
+    event({
+        Kind = Kinds.NOTE,
+        From = "HubC",
+        Signature = "sig004",
+        Tags = {},
+        Data = "Note from follower (should be ignored)"
+    })
+
+    -- Summary
+    print("\\n--- Final Stored Events ---")
+    for i, e in ipairs(State.Events) do
+        print(i .. ": Kind=" .. e.Kind .. " From=" .. (e.From or "Unknown") .. " Data=" .. (e.Data or ""))
+        if e.Kind == Kinds.GOSSIP then
+            print("    ↳ GOSSIP: ref=" .. (getTag(e.Tags, "reference-signature") or "none"))
+        end
+    end
+end
