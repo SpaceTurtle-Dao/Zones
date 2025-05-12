@@ -4,7 +4,7 @@
 
 This repository contains:
 - `registry.lua`: The core script for the Registry Zone.
-- `specs/`: Documentation for supported Zone Kinds (see below).
+- `specs/`: Documentation for supported Zone Types (see below).
 
 ## Purpose
 
@@ -17,11 +17,11 @@ The Registry Zone addresses the need for a decentralized directory in the AO eco
 
 - **Self-Registration**: Zones register using their own process ID (`msg.From`), ensuring authenticity.
 - **Updates**: Zones can update their metadata dynamically via the `Register` handler.
-- **Filtering and Paging**: The `GetZones` handler supports filtering by `Kind` (e.g., `"hub"`) and spec fields, with pagination for scalability.
+- **Filtering and Paging**: The `GetZones` handler supports filtering by spec fields, with pagination for scalability.
 
 ## Spec Structure
 Defined in `msg.Data` per `spec-zones.md`:
-- **`type`**: `"registry"` (string) - Maps to `Zone-Type: Registry` (inferred extension), filterable via `Kind: "registry"`.
+- **`type`**: `"registry"` (string) - Maps to `Zone-Type: Registry`.
 - **`description`**: String - Purpose (e.g., `"Zone registry"`).
 - **`version`**: String - Version (e.g., `"0.1"`).
 - **`parent`**: (optional) String - Parent registry ID (e.g., `"reg0"`).
@@ -38,3 +38,22 @@ Defined in `msg.Data` per `spec-zones.md`:
   "version": "0.1",
   "parent": "reg0"
 }
+```
+
+### GetZones
+```json
+{
+  "process": "dVL1cJFikqBQRbtHQiOxwto774TilKtrymfcaQO8HGQ",
+  "data": "",
+  "tags": [
+    {
+      "name": "Action",
+      "value": "GetZones"
+    },
+    {
+      "name": "Filters",
+      "value": "{\n\"spec\":{\n\"type\":\"hub\"\n}\n}"
+    }
+  ]
+}
+```
