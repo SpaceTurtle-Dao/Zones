@@ -182,12 +182,25 @@ function event(msg)
     local isFollowing = utils.includes(msg.From, myFollowList)
 
     if msg.Kind == Kinds.FOLLOW then
+        local newFollowList = {}
         for _, tag in ipairs(msg.Tags or {}) do
-            if tag[1] == "p" and tag[2] == State.Owner then
-                table.insert(State.Events, msg)
-                break
+            if tag[1] == "p" then
+                table.insert(newFollowList, tag[2])
             end
         end
+
+        local isFollowingMe = utils.includes(State.Owner, newFollowList)
+
+        -- If this hub is no longer being followed, remove old follow list from sender
+        if not isFollowingMe then
+            State.Events = utils.filter(function(e)
+                return not (e.Kind == Kinds.FOLLOW and e.From == msg.From)
+            end, State.Events)
+            return
+        end
+
+        -- Accept and store the follow list
+        table.insert(State.Events, msg)
         return
     end
 
@@ -204,9 +217,9 @@ function event(msg)
                         tombstone = {
                             Kind = Kinds.TOMBSTONE,
                             Tags = {
-                                { "deleted-id", e.Id },
-                                { "deleted-kind", e.Kind },
-                                { "deleted-by", msg.From },
+                                { "deleted-id",     e.Id },
+                                { "deleted-kind",   e.Kind },
+                                { "deleted-by",     msg.From },
                                 { "deleted-author", e.From }
                             },
                             Data = msg.Content or "",
@@ -254,11 +267,11 @@ function event(msg)
 
         if shouldGossip then
             local gossipTags = {
-                { "hub", "true" },
-                { "received-from", msg.From },
+                { "hub",                 "true" },
+                { "received-from",       msg.From },
                 { "reference-signature", msg.Signature },
-                { "referenced-kind", msg.Kind },
-                { "Kind", Kinds.GOSSIP }
+                { "referenced-kind",     msg.Kind },
+                { "Kind",                Kinds.GOSSIP }
             }
 
             for _, tag in ipairs(msg.Tags or {}) do
