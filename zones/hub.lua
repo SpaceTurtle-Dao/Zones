@@ -11,7 +11,8 @@ Kinds = {
     NOTE = "1",
     FOLLOW = "3",
     WRAPPED_SEAL = "6",
-    DELETE = "7",
+    DELETE = "5",
+    REACTION = "7",
     GOSSIP = "1000"
 }
 
@@ -194,29 +195,20 @@ function event(msg)
     local myFollowList = getFollowList(State.Events, State.Owner)
     local isFollowing = utils.includes(msg.From, myFollowList)
 
-    if msg.Kind == Kinds.FOLLOW then
-        for _, tag in ipairs(msg.Tags or {}) do
-            if tag[1] == "p" and tag[2] == State.Owner then
-                table.insert(State.Events, msg)
-                break
-            end
-        end
-        return
-    end
+    local allowedKinds = {
+        [Kinds.NOTE] = true,
+        [Kinds.WRAPPED_SEAL] = true,
+        [Kinds.PROFILE_UPDATE] = true,
+        [Kinds.FOLLOW] = true,
+        [Kinds.REACTION] = true,
+        [Kinds.GOSSIP] = true
+    }
 
     if msg.From == State.Owner then
         broadcastToFollowers(msg)
         routeInternal(msg)
         return
     end
-
-    local allowedKinds = {
-        [Kinds.NOTE] = true,
-        [Kinds.WRAPPED_SEAL] = true,
-        [Kinds.PROFILE_UPDATE] = true,
-        [Kinds.FOLLOW] = true,
-        [Kinds.GOSSIP] = true
-    }
 
     if isFollowing and allowedKinds[msg.Kind] then
         local shouldGossip = msg.Kind ~= Kinds.GOSSIP
@@ -227,11 +219,11 @@ function event(msg)
 
         if shouldGossip then
             local gossipTags = {
-                { "hub", "true" },
-                { "received-from", msg.From },
+                { "hub",                 "true" },
+                { "received-from",       msg.From },
                 { "reference-signature", msg.Signature },
-                { "referenced-kind", msg.Kind },
-                { "Kind", Kinds.GOSSIP }
+                { "referenced-kind",     msg.Kind },
+                { "Kind",                Kinds.GOSSIP }
             }
 
             for _, tag in ipairs(msg.Tags or {}) do
@@ -256,6 +248,15 @@ function event(msg)
                 })
             end
         end
+    elseif msg.Kind == Kinds.REACTION then
+        table.insert(State.Events, msg)
+    elseif msg.Kind == Kinds.FOLLOW and msg.From ~= State.Owner then
+        for _, tag in ipairs(msg.Tags or {}) do
+            if tag[1] == "p" and tag[2] == State.Owner then
+                table.insert(State.Events, msg)
+                break
+            end
+        end
     end
 end
 
@@ -277,7 +278,7 @@ Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(m
 end)
 
 
-table.insert(ao.authorities,"5btmdnmjWiFugymH7BepSig8cq1_zE-EQVumcXn0i_4")
+table.insert(ao.authorities, "5btmdnmjWiFugymH7BepSig8cq1_zE-EQVumcXn0i_4")
 
 function simulateGossipTest()
     print("\\n--- Running Gossip Simulation ---")
@@ -327,10 +328,10 @@ function simulateGossipTest()
         From = "HubB",
         Signature = "sig003",
         Tags = {
-            { "hub", "true" },
-            { "received-from", "HubZ" },
+            { "hub",                 "true" },
+            { "received-from",       "HubZ" },
             { "reference-signature", "sig999" },
-            { "referenced-kind", "0" }
+            { "referenced-kind",     "0" }
         },
         Data = "Hub B gossip"
     })
