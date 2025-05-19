@@ -1,0 +1,19 @@
+{
+  "name": "test-teal",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build": "bash ./scripts/build.sh",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "upload": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@permaweb/aoconnect": "^0.0.59",
+    "arweave": "^1.15.1"
+  }
+}

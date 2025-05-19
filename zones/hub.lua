@@ -133,3 +133,138 @@ local function calculateDynamicFee(kind, from)
   local multiplier = 1 + volumeFactor + spikeFactor
   return base * multiplier
 end
+
+function event(msg)
+  table.insert(RecentActivity, os.time())
+
+  local myFollowList = getFollowList(State.Events, State.Owner)
+  local isFollowing = utils.includes(msg.From, myFollowList)
+
+  if msg.Kind == Kinds.FOLLOW then
+    local newFollowList = {}
+    for _, tag in ipairs(msg.Tags or {}) do
+      if tag[1] == "p" then
+        table.insert(newFollowList, tag[2])
+      end
+    end
+    local isFollowingMe = utils.includes(State.Owner, newFollowList)
+    if not isFollowingMe then
+      State.Events = utils.filter(function(e)
+        return not (e.Kind == Kinds.FOLLOW and e.From == msg.From)
+      end, State.Events)
+      return
+    end
+    table.insert(State.Events, msg)
+    return
+  end
+
+  if msg.Kind == Kinds.DELETION then
+    for _, tag in ipairs(msg.Tags or {}) do
+      if tag[1] == "e" or tag[1] == "a" then
+        local tombstone = nil
+        State.Events = utils.filter(function(e)
+          local match = e.Id == tag[2] and e.From == msg.From
+          if match then
+            tombstone = {
+              Kind = Kinds.TOMBSTONE,
+              Tags = {
+                { "deleted-id", e.Id },
+                { "deleted-kind", e.Kind },
+                { "deleted-by", msg.From },
+                { "deleted-author", e.From }
+              },
+              Data = msg.Content or "",
+              Timestamp = msg.Timestamp or os.time()
+            }
+          end
+          return not match
+        end, State.Events)
+        if tombstone then
+          table.insert(State.Events, tombstone)
+          if tombstoneBroadcastKinds[tombstone.Tags[2][2]] then
+            broadcastToFollowers(tombstone)
+          end
+        end
+      end
+    end
+    table.insert(State.Events, msg)
+    return
+  end
+
+  if msg.From == State.Owner then
+    broadcastToFollowers(msg)
+    table.insert(State.Events, msg)
+    return
+  end
+
+  if State.AllowedKinds[msg.Kind] then
+    local shouldGossip = isFollowing and msg.Kind ~= Kinds.GOSSIP and msg.Signature and not hasSeenReference(msg.Signature)
+    table.insert(State.Events, msg)
+    if shouldGossip then
+      local tags = {
+        { "hub", "true" },
+        { "received-from", msg.From },
+        { "reference-signature", msg.Signature },
+        { "referenced-kind", msg.Kind },
+        { "Kind", Kinds.GOSSIP }
+      }
+      for _, tag in ipairs(msg.Tags or {}) do table.insert(tags, tag) end
+      local gossipMsg = {
+        Kind = Kinds.GOSSIP,
+        Tags = tags,
+        Data = "Gossip propagation for kind " .. msg.Kind
+      }
+      table.insert(State.Events, gossipMsg)
+      broadcastToFollowers(gossipMsg)
+    end
+  end
+end
+
+Handlers.add("Event", function(msg)
+  local isOwner = msg.From == State.Owner
+  local following = getFollowList(State.Events, State.Owner)
+  local isFollowed = utils.includes(msg.From, following)
+
+  if isOwner or isFollowed then
+    event(msg)
+  end
+end)
+
+Handlers.add("Credit-Notice", Handlers.utils.hasMatchingTag("Action", "Credit-Notice"), function(msg)
+  local from = msg.From
+  local payloadStr = msg["X-Payload"]
+  local amount = tonumber(msg.Amount or "0")
+  if not payloadStr then return end
+  local ok, payload = pcall(json.decode, payloadStr)
+  if not ok or type(payload) ~= "table" then return end
+  local kind = payload.Kind or getTag(payload.Tags, "kind")
+  if not kind then return end
+  local required = calculateDynamicFee(kind, from)
+  if amount < required then return end
+  payload.Tags = payload.Tags or {}
+  table.insert(payload.Tags, { "paid", "true" })
+  table.insert(payload.Tags, { "paid-amount", tostring(amount) })
+  table.insert(payload.Tags, { "required-fee", tostring(required) })
+  event(payload)
+end)
+
+Handlers.add("QueryFee", Handlers.utils.hasMatchingTag("Action", "QueryFee"), function(msg)
+  local kind = getTag(msg.Tags, "kind")
+  if not kind then return end
+  local fee = calculateDynamicFee(kind, msg.From)
+  ao.send({ Target = msg.From, Data = json.encode({ kind = kind, requiredFee = fee }) })
+end)
+
+Handlers.add("Config", Handlers.utils.hasMatchingTag("Action", "Config"), function(msg)
+  if msg.From ~= State.Owner then return end
+  local ok, body = pcall(json.decode, msg.Data or "{}")
+  if not ok or type(body) ~= "table" then return end
+
+  if body.FeePolicy then
+    State.FeePolicy = body.FeePolicy
+  end
+
+  if body.AllowedKinds then
+    State.AllowedKinds = body.AllowedKinds
+  end
+end)
