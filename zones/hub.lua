@@ -321,10 +321,9 @@ Handlers.add("Credit-Notice", Handlers.utils.hasMatchingTag("Action", "Credit-No
 end)
 
 Handlers.add("QueryFee", Handlers.utils.hasMatchingTag("Action", "QueryFee"), function(msg)
-    local kind = getTag(msg.Tags, "Kind")
-    if not kind then return end
-    local fee = calculateDynamicFee(kind, msg.From)
-    ao.send({ Target = msg.From, Data = json.encode({ kind = kind, requiredFee = fee }) })
+    if not msg.Kind then return end
+    local fee = calculateDynamicFee(msg.Kind, msg.From)
+    ao.send({ Target = msg.From, Data = json.encode({ kind = msg.Kind, requiredFee = fee }) })
 end)
 
 Handlers.add("Config", Handlers.utils.hasMatchingTag("Action", "Config"), function(msg)
