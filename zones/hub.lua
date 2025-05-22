@@ -170,6 +170,8 @@ local function deleteRequest(msg)
 end
 
 local function gossip(msg)
+    local myFollowList = getFollowList(State.Events, ao.id)
+    local isFollowing = utils.includes(msg.From, myFollowList)
     if State.AllowedKinds[msg.Kind] then
         local shouldGossip = isFollowing and msg.Kind ~= Kinds.GOSSIP and msg.Signature and
             not hasSeenReference(msg.Signature)
@@ -265,9 +267,6 @@ end
 
 function event(msg)
     table.insert(RecentActivity, os.time())
-
-    local myFollowList = getFollowList(State.Events, ao.id)
-    local isFollowing = utils.includes(msg.From, myFollowList)
 
     if msg.Kind == Kinds.FOLLOW then
         local newFollowList = {}
