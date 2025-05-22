@@ -104,17 +104,17 @@ local function getFollowers(events, pubkey)
 end
 
 local function broadcastToFollowers(msg)
-    for _, f in ipairs(getFollowers(State.Events, State.Owner)) do
+    for _, f in ipairs(getFollowers(State.Events, ao.id)) do
         ao.send({ Target = f, Action = "Event", Data = msg.Data, Tags = msg.Tags })
     end
 end
 
 local function calculateDynamicFee(kind, from)
-    local myFollowList = getFollowList(State.Events, State.Owner)
+    if from == State.Owner then return 0 end
+    local myFollowList = getFollowList(State.Events, ao.id)
     local isFollowing = utils.includes(from, myFollowList)
     local base = State.FeePolicy.base[kind] or 0
-    if from == State.Owner or isFollowing then return 0 end
-
+    if isFollowing then return 0 end
     local volumeFactor = #State.Events / (State.FeePolicy.scaleFactor or 1000)
 
     local spikeFactor = 0
@@ -134,101 +134,7 @@ local function calculateDynamicFee(kind, from)
     return base * multiplier
 end
 
-local function filter(filter, events)
-  local _events = events
-
-  if filter.ids then
-    _events = utils.filter(function(e) return utils.includes(e.Id, filter.ids) end, _events)
-  end
-
-  if filter.authors then
-    _events = utils.filter(function(e) return utils.includes(e.From, filter.authors) end, _events)
-  end
-
-  if filter.kinds then
-    _events = utils.filter(function(e) return utils.includes(e.Kind, filter.kinds) end, _events)
-  end
-
-  if filter.since then
-    _events = utils.filter(function(e) return e.Timestamp > filter.since end, _events)
-  end
-
-  if filter["until"] then
-    _events = utils.filter(function(e) return e.Timestamp < filter["until"] end, _events)
-  end
-
-  if filter.tags then
-    for tagKey, expectedValues in pairs(filter.tags) do
-      _events = utils.filter(function(e)
-        for _, tag in ipairs(e.Tags or {}) do
-          if tag[1] == tagKey and utils.includes(tag[2], expectedValues) then
-            return true
-          end
-        end
-        return false
-      end, _events)
-    end
-  end
-
-  if filter.search then
-    _events = utils.filter(function(e)
-      for _, tag in ipairs(e.Tags or {}) do
-        if string.find(string.lower(tag[2] or ""), string.lower(filter.search)) then
-          return true
-        end
-      end
-      return false
-    end, _events)
-  end
-
-  table.sort(_events, function(a, b) return a.Timestamp > b.Timestamp end)
-
-  local limit = math.min(filter.limit or 50, 500)
-  if #_events > limit then
-    _events = slice(_events, 1, limit)
-  end
-
-  return _events
-end
-
-local function fetchEvents(msg)
-  local filters = json.decode(msg.Filters or "[]")
-  local result = State.Events
-
-  for _, f in ipairs(filters) do
-    result = filter(f, result)
-  end
-
-  ao.send({
-    Target = msg.From,
-    Data = json.encode(result)
-  })
-end
-
-function event(msg)
-    table.insert(RecentActivity, os.time())
-
-    local myFollowList = getFollowList(State.Events, State.Owner)
-    local isFollowing = utils.includes(msg.From, myFollowList)
-
-    if msg.Kind == Kinds.FOLLOW then
-        local newFollowList = {}
-        for _, tag in ipairs(msg.Tags or {}) do
-            if tag[1] == "p" then
-                table.insert(newFollowList, tag[2])
-            end
-        end
-        local isFollowingMe = utils.includes(State.Owner, newFollowList)
-        if not isFollowingMe then
-            State.Events = utils.filter(function(e)
-                return not (e.Kind == Kinds.FOLLOW and e.From == msg.From)
-            end, State.Events)
-            return
-        end
-        table.insert(State.Events, msg)
-        return
-    end
-
+local function deleteRequest(msg)
     if msg.Kind == Kinds.DELETION then
         for _, tag in ipairs(msg.Tags or {}) do
             if tag[1] == "e" or tag[1] == "a" then
@@ -261,16 +167,12 @@ function event(msg)
         table.insert(State.Events, msg)
         return
     end
+end
 
-    if msg.From == State.Owner then
-        table.insert(State.Events, msg)
-        broadcastToFollowers(msg)
-        return
-    end
-
+local function gossip(msg)
     if State.AllowedKinds[msg.Kind] then
         local shouldGossip = isFollowing and msg.Kind ~= Kinds.GOSSIP and msg.Signature and
-        not hasSeenReference(msg.Signature)
+            not hasSeenReference(msg.Signature)
         table.insert(State.Events, msg)
         if shouldGossip then
             local tags = {
@@ -292,13 +194,120 @@ function event(msg)
     end
 end
 
-Handlers.add("Event", function(msg)
-    local isOwner = msg.From == State.Owner
-    local following = getFollowList(State.Events, State.Owner)
-    local isFollowed = utils.includes(msg.From, following)
+local function filter(filter, events)
+    local _events = events
 
-    if isOwner or isFollowed or msg.Kind == "3" then
-        if isOwner then msg.From = ao.id end 
+    if filter.ids then
+        _events = utils.filter(function(e) return utils.includes(e.Id, filter.ids) end, _events)
+    end
+
+    if filter.authors then
+        _events = utils.filter(function(e) return utils.includes(e.From, filter.authors) end, _events)
+    end
+
+    if filter.kinds then
+        _events = utils.filter(function(e) return utils.includes(e.Kind, filter.kinds) end, _events)
+    end
+
+    if filter.since then
+        _events = utils.filter(function(e) return e.Timestamp > filter.since end, _events)
+    end
+
+    if filter["until"] then
+        _events = utils.filter(function(e) return e.Timestamp < filter["until"] end, _events)
+    end
+
+    if filter.tags then
+        for key, tags in pairs(filter.tags) do
+            _events = utils.filter(function(e)
+                if e[key] then
+                    return utils.includes(e[key], tags)
+                end
+                return false
+            end, events)
+        end
+    end
+
+    if filter.search then
+        _events = utils.filter(function(e)
+            for _, tag in ipairs(e.Tags or {}) do
+                if string.find(string.lower(tag[2] or ""), string.lower(filter.search)) then
+                    return true
+                end
+            end
+            return false
+        end, _events)
+    end
+
+    table.sort(_events, function(a, b) return a.Timestamp > b.Timestamp end)
+
+    local limit = math.min(filter.limit or 50, 500)
+    if #_events > limit then
+        _events = slice(_events, 1, limit)
+    end
+
+    return _events
+end
+
+local function fetchEvents(msg)
+    local filters = json.decode(msg.Filters or "[]")
+    local result = State.Events
+
+    for _, f in ipairs(filters) do
+        result = filter(f, result)
+    end
+
+    ao.send({
+        Target = msg.From,
+        Data = json.encode(result)
+    })
+end
+
+function event(msg)
+    table.insert(RecentActivity, os.time())
+
+    local myFollowList = getFollowList(State.Events, ao.id)
+    local isFollowing = utils.includes(msg.From, myFollowList)
+
+    if msg.Kind == Kinds.FOLLOW then
+        local newFollowList = {}
+        for _, tag in ipairs(msg.Tags or {}) do
+            if tag[1] == "p" then
+                table.insert(newFollowList, tag[2])
+            end
+        end
+        local isFollowingMe = utils.includes(ao.id, newFollowList)
+        if not isFollowingMe then
+            State.Events = utils.filter(function(e)
+                return not (e.Kind == Kinds.FOLLOW and e.From == msg.From)
+            end, State.Events)
+            return
+        end
+        table.insert(State.Events, msg)
+        return
+    end
+
+    deleteRequest(msg)
+
+    gossip(msg)
+
+    if msg.From == ao.id then
+        table.insert(State.Events, msg)
+        broadcastToFollowers(msg)
+        return
+    end
+end
+
+
+
+Handlers.add("Event", function(msg)
+    local following = getFollowList(State.Events, ao.id)
+    local isFollowed = utils.includes(msg.From, following)
+    if msg.From == State.Owner then
+        msg.From = ao.id
+        event(msg)
+    end
+    if isFollowed or msg.Kind == "3" then
         event(msg)
     end
 end)
@@ -351,8 +360,8 @@ Handlers.add("Info", Handlers.utils.hasMatchingTag("Action", "Info"), function(m
             Spec = State.Spec,
             FeePolicy = State.FeePolicy,
             AllowedKinds = State.AllowedKinds,
-            Followers = getFollowers(State.Events, State.Owner),
-            Following = getFollowList(State.Events, State.Owner)
+            Followers = getFollowers(State.Events, ao.id),
+            Following = getFollowList(State.Events, ao.id)
         })
     })
 end)
