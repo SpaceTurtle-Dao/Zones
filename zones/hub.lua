@@ -34,10 +34,10 @@ end
 
 local function addUniqueString(array, hashTable, str)
     if not hashTable[str] then
-       hashTable[str] = true
-       table.insert(array, str)
+        hashTable[str] = true
+        table.insert(array, str)
     end
- end
+end
 
 local function getFollowList()
     for i = #State.Events, 1, -1 do
@@ -63,45 +63,44 @@ end
 
 function compareFollowLists(msg)
     if msg.Kind ~= Kinds.FOLLOW then return nil end
-  
+
     local oldList = {}
     for i = #State.Events, 1, -1 do
-      local e = State.Events[i]
-      if e.Kind == Kinds.FOLLOW and e.From == msg.From then
-        for _, tag in ipairs(e.Tags or {}) do
-          if tag[1] == "p" then table.insert(oldList, tag[2]) end
+        local e = State.Events[i]
+        if e.Kind == Kinds.FOLLOW and e.From == msg.From then
+            for _, tag in ipairs(e.Tags or {}) do
+                if tag[1] == "p" then table.insert(oldList, tag[2]) end
+            end
+            break
         end
-        break
-      end
     end
-  
+
     local newList = {}
     for _, tag in ipairs(msg.Tags or {}) do
-      if tag[1] == "p" then table.insert(newList, tag[2]) end
+        if tag[1] == "p" then table.insert(newList, tag[2]) end
     end
-  
+
     -- Convert to sets
     local oldSet, newSet = {}, {}
     for _, v in ipairs(oldList) do oldSet[v] = true end
     for _, v in ipairs(newList) do newSet[v] = true end
-  
+
     -- Compute additions and deletions
     local additions, deletions = {}, {}
-  
+
     for _, v in ipairs(newList) do
-      if not oldSet[v] then table.insert(additions, v) end
+        if not oldSet[v] then table.insert(additions, v) end
     end
-  
+
     for _, v in ipairs(oldList) do
-      if not newSet[v] then table.insert(deletions, v) end
+        if not newSet[v] then table.insert(deletions, v) end
     end
-  
+
     return {
-      additions = additions,
-      deletions = deletions
+        additions = additions,
+        deletions = deletions
     }
-  end
-  
+end
 
 local function broadcastToFollowers(msg)
     for _, f in ipairs(getFollowers()) do
@@ -185,6 +184,7 @@ function event(msg)
     if msg.From == State.Owner then
         msg.From = ao.id
         if msg.Kind == Kinds.FOLLOW then
+            table.insert(State.Events, msg)
             for _, v in ipairs(json.decode(msg.p)) do
                 ao.send({ Target = v, Action = "Event", p = msg.p, Kind = msg.Kind })
             end
@@ -194,15 +194,46 @@ function event(msg)
             end
             for _, v in ipairs(result.deletions) do
                 ao.send({ Target = v, Action = "Event", Tags = msg.Tags })
-            end]]--            
+            end]] --
+        elseif msg.Kind == Kinds.REACTION and msg.Content and msg.e and msg.p then
+            local _event = utils.find(
+                function(event)
+                    return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and
+                        msg.p == event.p
+                end,
+                State.Events
+            )
+            if _event then
+                State.Events = utils.filter(function(event)
+                    return event.Id ~= _event.Id
+                end, State.Events)
+            else
+                table.insert(State.Events, msg)
+            end
+        else
+            table.insert(State.Events, msg)
+            broadcastToFollowers(msg)
         end
-        table.insert(State.Events, msg)
-        broadcastToFollowers(msg)
     elseif msg.Kind == Kinds.FOLLOW then
         local isFollowingMe = utils.includes(ao.id, json.decode(msg.p))
         if not isFollowingMe then
             State.Events = utils.filter(function(e)
                 return not (e.Kind == Kinds.FOLLOW and e.From == msg.From)
+            end, State.Events)
+        else
+            table.insert(State.Events, msg)
+        end
+    elseif msg.Kind == Kinds.REACTION and msg.Content and msg.e and msg.p then
+        local _event = utils.find(
+            function(event)
+                return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and
+                    msg.p == event.p
+            end,
+            State.Events
+        )
+        if _event then
+            State.Events = utils.filter(function(event)
+                return event.Id ~= _event.Id
             end, State.Events)
         else
             table.insert(State.Events, msg)
