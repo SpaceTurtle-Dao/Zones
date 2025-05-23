@@ -6,11 +6,7 @@ Kinds = {
     PROFILE_UPDATE = "0",
     NOTE = "1",
     FOLLOW = "3",
-    DELETION = "5",
-    WRAPPED_SEAL = "6",
-    REACTION = "7",
-    GOSSIP = "1000",
-    TOMBSTONE = "9001"
+    REACTION = "7"
 }
 
 State = {
@@ -24,36 +20,6 @@ State = {
     }
 }
 
-State.FeePolicy = State.FeePolicy or {
-    base = {
-        [Kinds.NOTE] = 5000,
-        [Kinds.WRAPPED_SEAL] = 10000,
-        [Kinds.PROFILE_UPDATE] = 10000,
-        [Kinds.REACTION] = 2000
-    },
-    scaleFactor = 1000,
-    spikeEnabled = true,
-    spikeWindow = 60,
-    spikeScale = 60
-}
-
-State.AllowedKinds = State.AllowedKinds or {
-    [Kinds.NOTE] = true,
-    [Kinds.WRAPPED_SEAL] = true,
-    [Kinds.PROFILE_UPDATE] = true,
-    [Kinds.GOSSIP] = true,
-    [Kinds.REACTION] = true
-}
-
-local tombstoneBroadcastKinds = {
-    [Kinds.PROFILE_UPDATE] = true,
-    [Kinds.NOTE] = true,
-    [Kinds.WRAPPED_SEAL] = true,
-    [Kinds.REACTION] = true
-}
-
-local RecentActivity = {}
-
 local function slice(tbl, start_idx, end_idx)
     local new_table = {}
     table.move(tbl, start_idx or 1, end_idx or #tbl, 1, new_table)
@@ -66,133 +32,80 @@ local function getTag(tags, key)
     end
 end
 
-local function hasSeenReference(sig)
-    for _, e in ipairs(State.Events) do
-        if e.Kind == Kinds.GOSSIP and getTag(e.Tags, "reference-signature") == sig then
-            return true
-        end
+local function addUniqueString(array, hashTable, str)
+    if not hashTable[str] then
+       hashTable[str] = true
+       table.insert(array, str)
     end
-end
+ end
 
-local function getFollowList(events, from)
-    for i = #events, 1, -1 do
-        local e = events[i]
-        if e.Kind == Kinds.FOLLOW and e.From == from then
-            local list = {}
-            for _, tag in ipairs(e.Tags or {}) do
-                if tag[1] == "p" then table.insert(list, tag[2]) end
-            end
-            return list
+local function getFollowList()
+    for i = #State.Events, 1, -1 do
+        local e = State.Events[i]
+        if e.Kind == Kinds.FOLLOW and e.From == ao.id then
+            return json.decode(e.p)
         end
     end
     return {}
 end
 
-local function getFollowers(events, pubkey)
+local function getFollowers()
     local followers = {}
-    for _, e in ipairs(events) do
-        if e.Kind == Kinds.FOLLOW then
-            for _, tag in ipairs(e.Tags or {}) do
-                if tag[1] == "p" and tag[2] == pubkey then
-                    table.insert(followers, e.From)
-                    break
-                end
-            end
+    local followers_hash = {}
+    for i = #State.Events, 1, -1 do
+        local e = State.Events[i]
+        if e.Kind == Kinds.FOLLOW and e.From ~= ao.id then
+            addUniqueString(followers, followers_hash, e.From)
         end
     end
     return followers
 end
 
+function compareFollowLists(msg)
+    if msg.Kind ~= Kinds.FOLLOW then return nil end
+  
+    local oldList = {}
+    for i = #State.Events, 1, -1 do
+      local e = State.Events[i]
+      if e.Kind == Kinds.FOLLOW and e.From == msg.From then
+        for _, tag in ipairs(e.Tags or {}) do
+          if tag[1] == "p" then table.insert(oldList, tag[2]) end
+        end
+        break
+      end
+    end
+  
+    local newList = {}
+    for _, tag in ipairs(msg.Tags or {}) do
+      if tag[1] == "p" then table.insert(newList, tag[2]) end
+    end
+  
+    -- Convert to sets
+    local oldSet, newSet = {}, {}
+    for _, v in ipairs(oldList) do oldSet[v] = true end
+    for _, v in ipairs(newList) do newSet[v] = true end
+  
+    -- Compute additions and deletions
+    local additions, deletions = {}, {}
+  
+    for _, v in ipairs(newList) do
+      if not oldSet[v] then table.insert(additions, v) end
+    end
+  
+    for _, v in ipairs(oldList) do
+      if not newSet[v] then table.insert(deletions, v) end
+    end
+  
+    return {
+      additions = additions,
+      deletions = deletions
+    }
+  end
+  
+
 local function broadcastToFollowers(msg)
-    for _, f in ipairs(getFollowers(State.Events, ao.id)) do
+    for _, f in ipairs(getFollowers()) do
         ao.send({ Target = f, Action = "Event", Data = msg.Data, Tags = msg.Tags })
-    end
-end
-
-local function calculateDynamicFee(kind, from)
-    if from == State.Owner then return 0 end
-    local myFollowList = getFollowList(State.Events, ao.id)
-    local isFollowing = utils.includes(from, myFollowList)
-    local base = State.FeePolicy.base[kind] or 0
-    if isFollowing then return 0 end
-    local volumeFactor = #State.Events / (State.FeePolicy.scaleFactor or 1000)
-
-    local spikeFactor = 0
-    if State.FeePolicy.spikeEnabled then
-        local now = os.time()
-        local window = State.FeePolicy.spikeWindow or 60
-        local scale = State.FeePolicy.spikeScale or 60
-
-        RecentActivity = utils.filter(function(ts)
-            return ts > now - window
-        end, RecentActivity)
-
-        spikeFactor = #RecentActivity / scale
-    end
-
-    local multiplier = 1 + volumeFactor + spikeFactor
-    return base * multiplier
-end
-
-local function deleteRequest(msg)
-    if msg.Kind == Kinds.DELETION then
-        for _, tag in ipairs(msg.Tags or {}) do
-            if tag[1] == "e" or tag[1] == "a" then
-                local tombstone = nil
-                State.Events = utils.filter(function(e)
-                    local match = e.Id == tag[2] and e.From == msg.From
-                    if match then
-                        tombstone = {
-                            Kind = Kinds.TOMBSTONE,
-                            Tags = {
-                                { "deleted-id",     e.Id },
-                                { "deleted-kind",   e.Kind },
-                                { "deleted-by",     msg.From },
-                                { "deleted-author", e.From }
-                            },
-                            Data = msg.Content or "",
-                            Timestamp = msg.Timestamp or os.time()
-                        }
-                    end
-                    return not match
-                end, State.Events)
-                if tombstone then
-                    table.insert(State.Events, tombstone)
-                    if tombstoneBroadcastKinds[tombstone.Tags[2][2]] then
-                        broadcastToFollowers(tombstone)
-                    end
-                end
-            end
-        end
-        table.insert(State.Events, msg)
-        return
-    end
-end
-
-local function gossip(msg)
-    local myFollowList = getFollowList(State.Events, ao.id)
-    local isFollowing = utils.includes(msg.From, myFollowList)
-    if State.AllowedKinds[msg.Kind] then
-        local shouldGossip = isFollowing and msg.Kind ~= Kinds.GOSSIP and msg.Signature and
-            not hasSeenReference(msg.Signature)
-        table.insert(State.Events, msg)
-        if shouldGossip then
-            local tags = {
-                { "hub",                 "true" },
-                { "received-from",       msg.From },
-                { "reference-signature", msg.Signature },
-                { "referenced-kind",     msg.Kind },
-                { "Kind",                Kinds.GOSSIP }
-            }
-            for _, tag in ipairs(msg.Tags or {}) do table.insert(tags, tag) end
-            local gossipMsg = {
-                Kind = Kinds.GOSSIP,
-                Tags = tags,
-                Data = "Gossip propagation for kind " .. msg.Kind
-            }
-            table.insert(State.Events, gossipMsg)
-            broadcastToFollowers(gossipMsg)
-        end
     end
 end
 
@@ -266,88 +179,40 @@ local function fetchEvents(msg)
 end
 
 function event(msg)
-    table.insert(RecentActivity, os.time())
+    local following = getFollowList()
+    local isFollowed = utils.includes(msg.From, following)
 
-    if msg.Kind == Kinds.FOLLOW then
-        local newFollowList = {}
-        for _, tag in ipairs(msg.Tags or {}) do
-            if tag[1] == "p" then
-                table.insert(newFollowList, tag[2])
+    if msg.From == State.Owner then
+        msg.From = ao.id
+        if msg.Kind == Kinds.FOLLOW then
+            for _, v in ipairs(json.decode(msg.p)) do
+                ao.send({ Target = v, Action = "Event", p = msg.p, Kind = msg.Kind })
             end
+            --[[local result = compareFollowLists(msg)
+            for _, v in ipairs(result.additions) do
+                ao.send({ Target = v, Action = "Event", Tags = msg.Tags })
+            end
+            for _, v in ipairs(result.deletions) do
+                ao.send({ Target = v, Action = "Event", Tags = msg.Tags })
+            end]]--            
         end
-        local isFollowingMe = utils.includes(ao.id, newFollowList)
+        table.insert(State.Events, msg)
+        broadcastToFollowers(msg)
+    elseif msg.Kind == Kinds.FOLLOW then
+        local isFollowingMe = utils.includes(ao.id, json.decode(msg.p))
         if not isFollowingMe then
             State.Events = utils.filter(function(e)
                 return not (e.Kind == Kinds.FOLLOW and e.From == msg.From)
             end, State.Events)
-            return
+        else
+            table.insert(State.Events, msg)
         end
+    elseif isFollowed then
         table.insert(State.Events, msg)
-        return
-    end
-
-    deleteRequest(msg)
-
-    gossip(msg)
-
-    if msg.From == ao.id then
-        table.insert(State.Events, msg)
-        broadcastToFollowers(msg)
-        return
     end
 end
 
-
-
-Handlers.add("Event", function(msg)
-    local following = getFollowList(State.Events, ao.id)
-    local isFollowed = utils.includes(msg.From, following)
-    if msg.From == State.Owner then
-        msg.From = ao.id
-        event(msg)
-    end
-    if isFollowed or msg.Kind == "3" then
-        event(msg)
-    end
-end)
-
-Handlers.add("Credit-Notice", Handlers.utils.hasMatchingTag("Action", "Credit-Notice"), function(msg)
-    local from = msg.From
-    local payloadStr = msg["X-Payload"]
-    local amount = tonumber(msg.Amount or "0")
-    if not payloadStr then return end
-    local ok, payload = pcall(json.decode, payloadStr)
-    if not ok or type(payload) ~= "table" then return end
-    local kind = payload.Kind or getTag(payload.Tags, "kind")
-    if not kind then return end
-    local required = calculateDynamicFee(kind, from)
-    if amount < required then return end
-    payload.Tags = payload.Tags or {}
-    table.insert(payload.Tags, { "paid", "true" })
-    table.insert(payload.Tags, { "paid-amount", tostring(amount) })
-    table.insert(payload.Tags, { "required-fee", tostring(required) })
-    event(payload)
-end)
-
-Handlers.add("QueryFee", Handlers.utils.hasMatchingTag("Action", "QueryFee"), function(msg)
-    if not msg.Kind then return end
-    local fee = calculateDynamicFee(msg.Kind, msg.From)
-    ao.send({ Target = msg.From, Data = json.encode({ kind = msg.Kind, requiredFee = fee }) })
-end)
-
-Handlers.add("Config", Handlers.utils.hasMatchingTag("Action", "Config"), function(msg)
-    if msg.From ~= State.Owner then return end
-    local ok, body = pcall(json.decode, msg.Data or "{}")
-    if not ok or type(body) ~= "table" then return end
-
-    if body.FeePolicy then
-        State.FeePolicy = body.FeePolicy
-    end
-
-    if body.AllowedKinds then
-        State.AllowedKinds = body.AllowedKinds
-    end
-end)
+Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), event)
 
 Handlers.add('FetchEvents', Handlers.utils.hasMatchingTag('Action', 'FetchEvents'), fetchEvents)
 
@@ -359,8 +224,8 @@ Handlers.add("Info", Handlers.utils.hasMatchingTag("Action", "Info"), function(m
             Spec = State.Spec,
             FeePolicy = State.FeePolicy,
             AllowedKinds = State.AllowedKinds,
-            Followers = getFollowers(State.Events, ao.id),
-            Following = getFollowList(State.Events, ao.id)
+            Followers = getFollowers(),
+            Following = getFollowList()
         })
     })
 end)
