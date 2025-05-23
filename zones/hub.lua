@@ -61,45 +61,22 @@ local function getFollowers()
     return followers
 end
 
-function compareFollowLists(msg)
-    if msg.Kind ~= Kinds.FOLLOW then return nil end
-
-    local oldList = {}
-    for i = #State.Events, 1, -1 do
-        local e = State.Events[i]
-        if e.Kind == Kinds.FOLLOW and e.From == msg.From then
-            for _, tag in ipairs(e.Tags or {}) do
-                if tag[1] == "p" then table.insert(oldList, tag[2]) end
-            end
-            break
+local function arrayDiff(arr1, arr2)
+    -- Create a set from arr2 for O(1) lookup
+    local set2 = {}
+    for _, v in ipairs(arr2) do
+        set2[v] = true
+    end
+    
+    -- Create result array with elements from arr1 not in set2
+    local result = {}
+    for _, v in ipairs(arr1) do
+        if not set2[v] then
+            table.insert(result, v)
         end
     end
-
-    local newList = {}
-    for _, tag in ipairs(msg.Tags or {}) do
-        if tag[1] == "p" then table.insert(newList, tag[2]) end
-    end
-
-    -- Convert to sets
-    local oldSet, newSet = {}, {}
-    for _, v in ipairs(oldList) do oldSet[v] = true end
-    for _, v in ipairs(newList) do newSet[v] = true end
-
-    -- Compute additions and deletions
-    local additions, deletions = {}, {}
-
-    for _, v in ipairs(newList) do
-        if not oldSet[v] then table.insert(additions, v) end
-    end
-
-    for _, v in ipairs(oldList) do
-        if not newSet[v] then table.insert(deletions, v) end
-    end
-
-    return {
-        additions = additions,
-        deletions = deletions
-    }
+    
+    return result
 end
 
 local function broadcastToFollowers(msg)
@@ -183,9 +160,15 @@ function event(msg)
 
     if msg.From == State.Owner then
         msg.From = ao.id
-        if msg.Kind == Kinds.FOLLOW then
+        if msg.Kind == Kinds.FOLLOW and msg.p then
             table.insert(State.Events, msg)
-            for _, v in ipairs(json.decode(msg.p)) do
+            local additions = arrayDiff(json.decode(msg.p), following)
+            local deletions = arrayDiff(following, json.decode(msg.p))
+            if not followList then return end
+            for _, v in ipairs(additions) do
+                ao.send({ Target = v, Action = "Event", p = msg.p, Kind = msg.Kind })
+            end
+            for _, v in ipairs(deletions) do
                 ao.send({ Target = v, Action = "Event", p = msg.p, Kind = msg.Kind })
             end
             --[[local result = compareFollowLists(msg)
@@ -216,14 +199,33 @@ function event(msg)
         end
     elseif msg.Kind == Kinds.FOLLOW then
         local isFollowingMe = utils.includes(ao.id, json.decode(msg.p))
-        if not isFollowingMe then
+        if isFollowingMe == false then
             State.Events = utils.filter(function(e)
-                return not (e.Kind == Kinds.FOLLOW and e.From == msg.From)
+                if e.Kind == Kinds.FOLLOW and e.From == msg.From then
+                    return false
+                else
+                    return true
+                end
             end, State.Events)
         else
             table.insert(State.Events, msg)
         end
     elseif msg.Kind == Kinds.REACTION and msg.Content and msg.e and msg.p then
+        local _event = utils.find(
+            function(event)
+                return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and
+                    msg.p == event.p
+            end,
+            State.Events
+        )
+        if _event then
+            State.Events = utils.filter(function(event)
+                return event.Id ~= _event.Id
+            end, State.Events)
+        else
+            table.insert(State.Events, msg)
+        end
+    elseif msg.Kind == Kinds.NOTE and msg.Content and msg.e and msg.p and msg.marker == "reply" then
         local _event = utils.find(
             function(event)
                 return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and
