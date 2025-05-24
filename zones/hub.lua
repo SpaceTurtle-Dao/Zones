@@ -67,7 +67,7 @@ local function arrayDiff(arr1, arr2)
     for _, v in ipairs(arr2) do
         set2[v] = true
     end
-    
+
     -- Create result array with elements from arr1 not in set2
     local result = {}
     for _, v in ipairs(arr1) do
@@ -75,7 +75,7 @@ local function arrayDiff(arr1, arr2)
             table.insert(result, v)
         end
     end
-    
+
     return result
 end
 
@@ -160,24 +160,15 @@ function event(msg)
 
     if msg.From == State.Owner then
         msg.From = ao.id
+        msg.Original_Id = msg.Id
         if msg.Kind == Kinds.FOLLOW and msg.p then
             table.insert(State.Events, msg)
-            local additions = arrayDiff(json.decode(msg.p), following)
-            local deletions = arrayDiff(following, json.decode(msg.p))
-            if not followList then return end
-            for _, v in ipairs(additions) do
+            for _, v in ipairs(json.decode(msg.p)) do
                 ao.send({ Target = v, Action = "Event", p = msg.p, Kind = msg.Kind })
             end
-            for _, v in ipairs(deletions) do
+            for _, v in ipairs(following) do
                 ao.send({ Target = v, Action = "Event", p = msg.p, Kind = msg.Kind })
             end
-            --[[local result = compareFollowLists(msg)
-            for _, v in ipairs(result.additions) do
-                ao.send({ Target = v, Action = "Event", Tags = msg.Tags })
-            end
-            for _, v in ipairs(result.deletions) do
-                ao.send({ Target = v, Action = "Event", Tags = msg.Tags })
-            end]] --
         elseif msg.Kind == Kinds.REACTION and msg.Content and msg.e and msg.p then
             local _event = utils.find(
                 function(event)
