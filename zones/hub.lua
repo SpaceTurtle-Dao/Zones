@@ -1,155 +1,111 @@
--- Initialize global variables
---local ao = require('ao')
-local json = require('json');
+local json = require('json')
 local bint = require('.bint')(256)
 local utils = require(".utils")
 
-Variant = "0.0.1"
-RegistryProcess = "dVL1cJFikqBQRbtHQiOxwto774TilKtrymfcaQO8HGQ"
-
-local spec = {
-    type = "hub",
-    description = "Social message hub",
-    version = "0.1"
+Kinds = {
+    PROFILE_UPDATE = "0",
+    NOTE = "1",
+    FOLLOW = "3",
+    REACTION = "7"
 }
 
-if not Events then Events = {} end
-if not Followers then Followers = {} end
-
--- Utils helper functions
-Utils = {
-    add = function(a, b)
-        return tostring(bint(a) + bint(b))
-    end,
-    subtract = function(a, b)
-        return tostring(bint(a) - bint(b))
-    end,
-    toBalanceValue = function(a)
-        return tostring(bint(a))
-    end,
-    toNumber = function(a)
-        return tonumber(a)
-    end
+State = {
+    Events = Events or {},
+    Owner = Owner,
+    Spec = {
+        type = "hub",
+        description = "Social message hub",
+        version = "0.1",
+        processId = ao.id
+    }
 }
 
-function Spairs(t, order)
-    -- collect the keys
-    local keys = {}
-    for k in pairs(t) do keys[#keys + 1] = k end
-
-    -- if order function given, sort by it by passing the table and keys a, b,
-    -- otherwise just sort the keys
-    if order then
-        table.sort(keys, function(a, b) return order(t, a, b) end)
-    else
-        table.sort(keys)
-    end
-
-    -- return the iterator function
-    local i = 0
-    return function()
-        i = i + 1
-        if keys[i] then
-            return keys[i], t[keys[i]]
-        end
-    end
-end
-
-local function some(arr, predicate)
-    for i = 1, #arr do
-        if predicate(arr[i]) then
-            return true
-        end
-    end
-    return false
-end
-
-function slice(tbl, start_idx, end_idx)
+local function slice(tbl, start_idx, end_idx)
     local new_table = {}
     table.move(tbl, start_idx or 1, end_idx or #tbl, 1, new_table)
     return new_table
 end
 
-function compareArrays(oldArray, newArray)
-    -- Convert arrays to hash tables for efficient lookup
-    local oldSet = {}
-    local newSet = {}
+local function getTag(tags, key)
+    for _, tag in ipairs(tags or {}) do
+        if tag[1] == key then return tag[2] end
+    end
+end
 
-    -- Populate oldSet
-    for _, value in ipairs(oldArray) do
-        oldSet[value] = true
+local function addUniqueString(array, hashTable, str)
+    if not hashTable[str] then
+        hashTable[str] = true
+        table.insert(array, str)
+    end
+end
+
+local function getFollowList()
+    for i = #State.Events, 1, -1 do
+        local e = State.Events[i]
+        if e.Kind == Kinds.FOLLOW and e.From == ao.id then
+            return json.decode(e.p)
+        end
+    end
+    return {}
+end
+
+local function getFollowers()
+    local followers = {}
+    local followers_hash = {}
+    for i = #State.Events, 1, -1 do
+        local e = State.Events[i]
+        if e.Kind == Kinds.FOLLOW and e.From ~= ao.id then
+            addUniqueString(followers, followers_hash, e.From)
+        end
+    end
+    return followers
+end
+
+local function arrayDiff(arr1, arr2)
+    -- Create a set from arr2 for O(1) lookup
+    local set2 = {}
+    for _, v in ipairs(arr2) do
+        set2[v] = true
     end
 
-    -- Populate newSet
-    for _, value in ipairs(newArray) do
-        newSet[value] = true
-    end
-
-    -- Find additions: elements in newArray not in oldArray
-    local additions = {}
-    for _, value in ipairs(newArray) do
-        if not oldSet[value] then
-            table.insert(additions, value)
+    -- Create result array with elements from arr1 not in set2
+    local result = {}
+    for _, v in ipairs(arr1) do
+        if not set2[v] then
+            table.insert(result, v)
         end
     end
 
-    -- Find deletions: elements in oldArray not in newArray
-    local deletions = {}
-    for _, value in ipairs(oldArray) do
-        if not newSet[value] then
-            table.insert(deletions, value)
-        end
-    end
+    return result
+end
 
-    return {
-        additions = additions,
-        deletions = deletions
-    }
+local function broadcastToFollowers(msg)
+    for _, f in ipairs(getFollowers()) do
+        ao.send({ Target = f, Action = "Event", Data = msg.Data, Tags = msg.Tags })
+    end
 end
 
 local function filter(filter, events)
     local _events = events
-    table.sort(_events, function(a, b)
-        return a.Timestamp > b.Timestamp
-    end)
-    if filter.limit and filter.limit < #events then
-        _events = slice(events, 1, filter.limit)
-    end
 
     if filter.ids then
-        _events = utils.filter(function(event)
-            return utils.includes(event.Id, filter.ids)
-        end, _events)
+        _events = utils.filter(function(e) return utils.includes(e.Id, filter.ids) end, _events)
     end
 
     if filter.authors then
-        _events = utils.filter(function(event)
-            return utils.includes(event.From, filter.authors)
-        end, _events)
+        _events = utils.filter(function(e) return utils.includes(e.From, filter.authors) end, _events)
     end
 
     if filter.kinds then
-        _events = utils.filter(function(event)
-            return utils.includes(event.Kind, filter.kinds)
-        end, _events)
+        _events = utils.filter(function(e) return utils.includes(e.Kind, filter.kinds) end, _events)
     end
 
     if filter.since then
-        _events = utils.filter(function(event)
-            return event.Timestamp > filter.since
-        end, _events)
+        _events = utils.filter(function(e) return e.Timestamp > filter.since end, _events)
     end
 
     if filter["until"] then
-        _events = utils.filter(function(event)
-            return event.Timestamp < filter["until"]
-        end, _events)
-    end
-
-    if filter.search then
-        _events = utils.filter(function(event)
-            return string.find(string.lower(event.Content), string.lower(filter.search))
-        end, _events)
+        _events = utils.filter(function(e) return e.Timestamp < filter["until"] end, _events)
     end
 
     if filter.tags then
@@ -162,145 +118,140 @@ local function filter(filter, events)
             end, events)
         end
     end
+
+    if filter.search then
+        _events = utils.filter(function(e)
+            for _, tag in ipairs(e.Tags or {}) do
+                if string.find(string.lower(tag[2] or ""), string.lower(filter.search)) then
+                    return true
+                end
+            end
+            return false
+        end, _events)
+    end
+
+    table.sort(_events, function(a, b) return a.Timestamp > b.Timestamp end)
+
+    local limit = math.min(filter.limit or 50, 500)
+    if #_events > limit then
+        _events = slice(_events, 1, limit)
+    end
+
     return _events
 end
 
-local function fetch(tbl, page, size)
-    local start = (page - 1) * size + 1
-    local endPage = page * size
-    local result = {};
-    for i = start, endPage do
-        if tbl[i] then
-            table.insert(result, tbl[i])
-        else
-            break
-        end
-    end
-    return result;
-end
-
-local function getFollowLists()
-    local followLists = utils.filter(function(event)
-        return utils.includes(event.Kind, { "3" })
-    end, Events)
-    local followList = {}
-    if #followLists > 0 then followList = json.decode(followLists[#followLists].p) end
-    return followList
-end
-
 local function fetchEvents(msg)
-    local filters = json.decode(msg.Filters)
-    local _events = Events
-    for k, v in ipairs(filters) do
-        _events = filter(v, _events)
+    local filters = json.decode(msg.Filters or "[]")
+    local result = State.Events
+
+    for _, f in ipairs(filters) do
+        result = filter(f, result)
     end
+
     ao.send({
         Target = msg.From,
-        Data = json.encode(_events)
+        Data = json.encode(result)
     })
 end
 
-local function event(msg)
-    local followList = getFollowLists()
-    if msg.From == Owner then
-        for i = 1, #Followers do
-            ao.send({
-                Target = Followers[i],
-                Action = "Event",
-                Data = msg.Data,
-                Tags = msg.Tags
-            })
-        end
-        msg.From = msg.Target
-        if msg.Kind == "7" and msg.Content and msg.e and msg.p then
+function event(msg)
+    local following = getFollowList()
+    local isFollowed = utils.includes(msg.From, following)
+
+    if msg.From == State.Owner then
+        msg.From = ao.id
+        msg.Original_Id = msg.Id
+        if msg.Kind == Kinds.FOLLOW and msg.p then
+            table.insert(State.Events, msg)
+            for _, v in ipairs(json.decode(msg.p)) do
+                ao.send({ Target = v, Action = "Event", p = msg.p, Kind = msg.Kind })
+            end
+            for _, v in ipairs(following) do
+                ao.send({ Target = v, Action = "Event", p = msg.p, Kind = msg.Kind })
+            end
+        elseif msg.Kind == Kinds.REACTION and msg.Content and msg.e and msg.p then
             local _event = utils.find(
                 function(event)
                     return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and
                         msg.p == event.p
                 end,
-                Events
+                State.Events
             )
             if _event then
-                Events = utils.filter(function(event)
+                State.Events = utils.filter(function(event)
                     return event.Id ~= _event.Id
-                end, Events)
+                end, State.Events)
             else
-                table.insert(Events, msg)
-            end
-        elseif msg.Kind == "3" and msg.p then
-            -- handle follow list update
-            local _events = Events
-            local oldArray = {}
-            _events = utils.filter(function(event)
-                return utils.includes(event.Kind, { "3" })
-            end, _events)
-            if #_events > 0 then oldArray = json.decode(_events[#_events].p) end
-            local newArray = json.decode(msg.p)
-            local results = compareArrays(oldArray, newArray)
-            local additions = results.additions
-            local deletions = results.deletions
-            table.insert(Events, msg)
-            for i, v in ipairs(additions) do
-                ao.send({
-                    Target = v,
-                    Action = "Follow",
-                    Kind = "2",
-                    Content = "+"
-                })
-            end
-            for i, v in ipairs(deletions) do
-                ao.send({
-                    Target = v,
-                    Action = "Follow",
-                    Kind = "2",
-                    Content = "-"
-                })
+                table.insert(State.Events, msg)
             end
         else
-            table.insert(Events, msg)
+            table.insert(State.Events, msg)
+            broadcastToFollowers(msg)
         end
-    elseif utils.includes(msg.From, followList) and msg.Kind == "1" or msg.Kind == "6" then
-        table.insert(Events, msg)
+    elseif msg.Kind == Kinds.FOLLOW then
+        local isFollowingMe = utils.includes(ao.id, json.decode(msg.p))
+        if isFollowingMe == false then
+            State.Events = utils.filter(function(e)
+                if e.Kind == Kinds.FOLLOW and e.From == msg.From then
+                    return false
+                else
+                    return true
+                end
+            end, State.Events)
+        else
+            table.insert(State.Events, msg)
+        end
+    elseif msg.Kind == Kinds.REACTION and msg.Content and msg.e and msg.p then
+        local _event = utils.find(
+            function(event)
+                return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and
+                    msg.p == event.p
+            end,
+            State.Events
+        )
+        if _event then
+            State.Events = utils.filter(function(event)
+                return event.Id ~= _event.Id
+            end, State.Events)
+        else
+            table.insert(State.Events, msg)
+        end
+    elseif msg.Kind == Kinds.NOTE and msg.Content and msg.e and msg.p and msg.marker == "reply" then
+        local _event = utils.find(
+            function(event)
+                return msg.From == event.From and msg.Kind == event.Kind and msg.e == event.e and
+                    msg.p == event.p
+            end,
+            State.Events
+        )
+        if _event then
+            State.Events = utils.filter(function(event)
+                return event.Id ~= _event.Id
+            end, State.Events)
+        else
+            table.insert(State.Events, msg)
+        end
+    elseif isFollowed then
+        table.insert(State.Events, msg)
     end
 end
 
+Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), event)
 
-Handlers.add('FetchEvents', Handlers.utils.hasMatchingTag('Action', 'FetchEvents'), function(msg)
-    fetchEvents(msg)
-end)
+Handlers.add('FetchEvents', Handlers.utils.hasMatchingTag('Action', 'FetchEvents'), fetchEvents)
 
-
-Handlers.add('Event', Handlers.utils.hasMatchingTag('Action', 'Event'), function(msg)
-    event(msg)
-end)
-
-Handlers.add('Follow', Handlers.utils.hasMatchingTag('Action', 'Follow'), function(msg)
-    if msg.Kind == "2" and (msg.Content == "+" or msg.Content == "") then
-        if utils.includes(msg.From, Followers) then return end
-        table.insert(Followers, msg.From)
-    elseif msg.Kind == "2" and msg.Content == "-" then
-        Followers = utils.filter(function(follower)
-            return msg.From ~= follower
-        end, Followers)
-    end
-end)
-
-Handlers.add('DeleteEvents', Handlers.utils.hasMatchingTag('Action', 'DeleteEvents'), function(msg)
-    if msg.From == Owner then
-        Events = {}
-    end
-end)
-
-Handlers.add('Info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(msg)
+Handlers.add("Info", Handlers.utils.hasMatchingTag("Action", "Info"), function(msg)
     ao.send({
         Target = msg.From,
         Data = json.encode({
-            User = Owner,
-            spec = spec,
-            Followers = json.encode(Followers),
-            Following = json.encode(getFollowLists())
+            User = State.Owner,
+            Spec = State.Spec,
+            FeePolicy = State.FeePolicy,
+            AllowedKinds = State.AllowedKinds,
+            Followers = getFollowers(),
+            Following = getFollowList()
         })
     })
 end)
 
-table.insert(ao.authorities,"fcoN_xJeisVsPXA-trzVAuIiqO3ydLQxM-L4XbrQKzY")
+table.insert(ao.authorities, "5btmdnmjWiFugymH7BepSig8cq1_zE-EQVumcXn0i_4")

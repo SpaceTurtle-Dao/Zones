@@ -14,7 +14,7 @@ Handlers.add("Register", Handlers.utils.hasMatchingTag("Action", "Register"), fu
   }
   ao.send({
     Target = msg.From,
-    Data = "Successfully registered zone: " .. registeringZone
+    Data = "Successfully registered zone: " .. spec.processId
   })
 end
 )
